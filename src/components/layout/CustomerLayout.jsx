@@ -5,8 +5,8 @@ import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 import DarkModeToggle from '@/components/shared/DarkModeToggle';
 import NewsPanel from '@/components/customer/NewsPanel';
 import AccessibilityMenu from '@/components/shared/AccessibilityMenu';
-import { UtensilsCrossed } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { PUTT_LOGO_URL } from '@/lib/branding';
 
 export default function CustomerLayout() {
   const { t, dir } = useI18n();
@@ -23,8 +23,8 @@ export default function CustomerLayout() {
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           {/* Logo - NOT a link, just branding */}
           <div className="flex items-center gap-2 cursor-default select-none">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <UtensilsCrossed className="h-4 w-4 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-lg overflow-hidden bg-white border border-border/50 flex items-center justify-center">
+              <img src={PUTT_LOGO_URL} alt="Putt" className="h-full w-full object-cover" />
             </div>
             <span className="font-bold text-lg text-foreground tracking-tight">Putt</span>
           </div>

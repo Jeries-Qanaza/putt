@@ -1,0 +1,15 @@
+{
+  "name": "Putt",
+  "short_name": "Putt",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "https://excmyttiqgchkbxlhaps.supabase.co/storage/v1/object/public/putt-assets/restaurants_logos/putt_logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

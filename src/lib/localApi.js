@@ -184,7 +184,7 @@ const tableMap = {
   Category: 'categories',
   Meal: 'meals',
   Event: 'events',
-  News: 'news',
+  News: null,
 };
 
 const sortFieldMap = {
@@ -198,6 +198,7 @@ const sortFieldMap = {
   Meal: {
     name: 'meal_name_en',
     description: 'meal_description_en',
+    sort_order: 'created_at',
   },
   Event: {
     title: 'title_en',
@@ -272,7 +273,11 @@ const writeCollection = (entityName, updater) => {
   return state[entityName];
 };
 
-const getTableName = (entityName) => tableMap[entityName] || entityName.toLowerCase();
+const getTableName = (entityName) =>
+  Object.prototype.hasOwnProperty.call(tableMap, entityName)
+    ? tableMap[entityName]
+    : entityName.toLowerCase();
+const remoteEntityDisabled = new Set();
 
 const mapFieldName = (entityName, field) => {
   if (!field) return field;
@@ -377,6 +382,7 @@ function normalizeSchedule(schedule) {
 const shouldFallbackToLocal = (error) => {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
   return (
+    message.includes('column') ||
     message.includes('relation') ||
     message.includes('does not exist') ||
     message.includes('permission denied') ||
@@ -388,11 +394,16 @@ const shouldFallbackToLocal = (error) => {
 
 const runSupabase = async (entityName, callback) => {
   if (!isSupabaseConfigured) return null;
+  if (remoteEntityDisabled.has(entityName)) return null;
+
+  const tableName = getTableName(entityName);
+  if (!tableName) return null;
 
   try {
-    return await callback(supabase.from(getTableName(entityName)));
+    return await callback(supabase.from(tableName));
   } catch (error) {
     if (shouldFallbackToLocal(error)) {
+      remoteEntityDisabled.add(entityName);
       return null;
     }
     throw error;

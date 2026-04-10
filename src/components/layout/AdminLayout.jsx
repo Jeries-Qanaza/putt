@@ -3,9 +3,9 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/AuthContext';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
+import { PUTT_LOGO_URL } from '@/lib/branding';
 import {
   LayoutDashboard,
-  UtensilsCrossed,
   Tag,
   CalendarDays,
   Soup,
@@ -18,7 +18,7 @@ import { useState } from 'react';
 
 const navItems = [
   { path: '/admin', icon: LayoutDashboard, labelKey: 'adminDashboard' },
-  { path: '/admin/restaurants', icon: UtensilsCrossed, labelKey: 'restaurants' },
+  { path: '/admin/restaurants', icon: LayoutDashboard, labelKey: 'restaurants' },
   { path: '/admin/categories', icon: Tag, labelKey: 'categories' },
   { path: '/admin/meals', icon: Soup, labelKey: 'menu' },
   { path: '/admin/events', icon: CalendarDays, labelKey: 'news' },
@@ -36,8 +36,8 @@ export default function AdminLayout() {
       <aside className="hidden md:flex flex-col w-64 border-e border-border bg-card min-h-screen sticky top-0">
         <div className="p-4 border-b border-border">
           <Link to="/admin" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <UtensilsCrossed className="h-4 w-4 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-lg overflow-hidden bg-white border border-border/50 flex items-center justify-center">
+              <img src={PUTT_LOGO_URL} alt="Putt" className="h-full w-full object-cover" />
             </div>
             <span className="font-bold text-lg">Putt Admin</span>
           </Link>
@@ -63,7 +63,7 @@ export default function AdminLayout() {
             to="/"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <UtensilsCrossed className="h-4 w-4" />
+            <img src={PUTT_LOGO_URL} alt="Putt" className="h-4 w-4 rounded object-cover" />
             {t('home')}
           </Link>
           <button

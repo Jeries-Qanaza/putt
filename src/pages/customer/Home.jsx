@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import RestaurantCard from '@/components/shared/RestaurantCard';
 import { motion } from 'framer-motion';
+import { PUTT_LOGO_URL } from '@/lib/branding';
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -93,9 +94,10 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-3 py-4"
       >
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-          🍽️ Putt
-        </h1>
+        <div className="flex items-center justify-center gap-3">
+          <img src={PUTT_LOGO_URL} alt="Putt" className="h-12 w-12 rounded-2xl border border-border/50 object-cover bg-white shadow-sm" />
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">Putt</h1>
+        </div>
         <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
           {t('searchRestaurants')}
         </p>
