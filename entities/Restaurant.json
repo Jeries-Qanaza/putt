@@ -1,0 +1,189 @@
+{
+  "name": "Restaurant",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Restaurant name"
+    },
+    "name_he": {
+      "type": "string",
+      "description": "Restaurant name in Hebrew"
+    },
+    "name_ar": {
+      "type": "string",
+      "description": "Restaurant name in Arabic"
+    },
+    "description": {
+      "type": "string",
+      "description": "Restaurant description"
+    },
+    "description_he": {
+      "type": "string",
+      "description": "Description in Hebrew"
+    },
+    "description_ar": {
+      "type": "string",
+      "description": "Description in Arabic"
+    },
+    "address": {
+      "type": "string",
+      "description": "Full address"
+    },
+    "latitude": {
+      "type": "number",
+      "description": "GPS latitude"
+    },
+    "longitude": {
+      "type": "number",
+      "description": "GPS longitude"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "schedule": {
+      "type": "object",
+      "description": "Weekly schedule: { Sun: { open: '08:00', close: '22:00', closed: false }, ... }",
+      "properties": {
+        "Sun": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "Mon": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "Tue": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "Wed": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "Thu": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "Fri": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "Sat": {
+          "type": "object",
+          "properties": {
+            "open": {
+              "type": "string"
+            },
+            "close": {
+              "type": "string"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "cover_image": {
+      "type": "string",
+      "description": "Cover image URL"
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Category names"
+    },
+    "manager_email": {
+      "type": "string",
+      "description": "Email of the assigned manager"
+    },
+    "manager_name": {
+      "type": "string",
+      "description": "Manager full name"
+    },
+    "manager_phone": {
+      "type": "string",
+      "description": "Manager phone number"
+    },
+    "editor_username": {
+      "type": "string",
+      "description": "Username for the restaurant editor login"
+    },
+    "editor_password": {
+      "type": "string",
+      "description": "Password for the restaurant editor login"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether restaurant is active/visible"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

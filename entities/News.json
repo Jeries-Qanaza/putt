@@ -1,0 +1,73 @@
+{
+  "name": "News",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title in English"
+    },
+    "title_he": {
+      "type": "string",
+      "description": "Title in Hebrew"
+    },
+    "title_ar": {
+      "type": "string",
+      "description": "Title in Arabic"
+    },
+    "body": {
+      "type": "string",
+      "description": "Body in English"
+    },
+    "body_he": {
+      "type": "string",
+      "description": "Body in Hebrew"
+    },
+    "body_ar": {
+      "type": "string",
+      "description": "Body in Arabic"
+    },
+    "emoji": {
+      "type": "string",
+      "description": "Emoji icon"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "happy_hour",
+        "coupon",
+        "announcement",
+        "event"
+      ],
+      "default": "announcement"
+    },
+    "restaurant_id": {
+      "type": "string",
+      "description": "Optional: linked restaurant ID"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Expiry date (for offers/coupons)"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Event date (for type=event)"
+    },
+    "time": {
+      "type": "string",
+      "description": "Event time e.g. 20:00 (for type=event)"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Image URL"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
