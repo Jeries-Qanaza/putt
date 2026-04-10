@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { localApi } from '@/lib/localApi';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
@@ -33,6 +33,17 @@ export default function NewsPanel() {
 
   const hasItems = items.length > 0;
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
+
   return (
     <>
       <button
@@ -49,7 +60,7 @@ export default function NewsPanel() {
       <AnimatePresence>
         {open && (
           <div
-            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           >
             <motion.div
@@ -58,7 +69,7 @@ export default function NewsPanel() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.88, y: 24 }}
               transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-              className="relative z-10 w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden"
+              className="relative z-[10000] my-auto w-full max-w-sm overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
@@ -80,7 +91,7 @@ export default function NewsPanel() {
                 </button>
               </div>
 
-              <div className="p-4 max-h-[60vh] overflow-y-auto">
+              <div className="max-h-[70dvh] overflow-y-auto p-4">
                 {!hasItems ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <span className="text-4xl block mb-3">🎉</span>

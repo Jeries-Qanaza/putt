@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import DietaryBadges from '@/components/shared/DietaryBadges';
@@ -7,7 +7,12 @@ export default function MealCard({ meal, index = 0, onClick, fallbackImage }) {
   const { t, getLocalizedField } = useI18n();
   const name = getLocalizedField(meal, 'name');
   const desc = getLocalizedField(meal, 'description');
-  const imageUrl = meal.image_url || fallbackImage;
+  const primaryImage = meal.image_url || fallbackImage || '';
+  const [currentImage, setCurrentImage] = useState(primaryImage);
+
+  useEffect(() => {
+    setCurrentImage(primaryImage);
+  }, [primaryImage]);
 
   return (
     <motion.div
@@ -21,8 +26,20 @@ export default function MealCard({ meal, index = 0, onClick, fallbackImage }) {
       className={`flex items-start gap-4 overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm transition-all duration-200 hover:shadow-md ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
     >
       <div className="h-28 w-28 shrink-0 overflow-hidden rounded-none bg-muted">
-        {imageUrl ? (
-          <img src={imageUrl} alt={name} className="h-full w-full object-cover" loading="lazy" />
+        {currentImage ? (
+          <img
+            src={currentImage}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => {
+              if (currentImage !== fallbackImage && fallbackImage) {
+                setCurrentImage(fallbackImage);
+                return;
+              }
+              setCurrentImage('');
+            }}
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-3xl">
             *

@@ -15,7 +15,12 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
   const meal = meals[index];
   const name = getLocalizedField(meal, 'name');
   const desc = getLocalizedField(meal, 'description');
-  const imageUrl = meal.image_url || fallbackImage;
+  const primaryImage = meal.image_url || fallbackImage || '';
+  const [currentImage, setCurrentImage] = useState(primaryImage);
+
+  useEffect(() => {
+    setCurrentImage(primaryImage);
+  }, [primaryImage, index]);
 
   const goNext = () => {
     if (index < meals.length - 1) {
@@ -66,10 +71,10 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:left-1/2 md:right-auto md:top-1/2 md:bottom-auto md:w-[60vw] md:max-w-4xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl"
+        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:left-1/2 md:right-auto md:top-[50dvh] md:bottom-auto md:w-[40vw] md:min-w-[36rem] md:max-w-3xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:aspect-[16/6]">
+        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:aspect-[16/8]">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={`img-${index}`}
@@ -81,8 +86,19 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="absolute inset-0"
             >
-              {imageUrl ? (
-                <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+              {currentImage ? (
+                <img
+                  src={currentImage}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={() => {
+                    if (currentImage !== fallbackImage && fallbackImage) {
+                      setCurrentImage(fallbackImage);
+                      return;
+                    }
+                    setCurrentImage('');
+                  }}
+                />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-6xl">
                   *
@@ -137,7 +153,7 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
                 if (info.offset.x < -80) goNext();
                 else if (info.offset.x > 80) goPrev();
               }}
-              className="max-h-[42vh] select-none space-y-3 overflow-y-auto p-5 md:max-h-[40vh]"
+              className="max-h-[42vh] select-none space-y-3 overflow-y-auto p-5 md:max-h-[48vh]"
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-xl font-bold leading-tight text-foreground">{name}</h2>
