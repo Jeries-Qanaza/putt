@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { localApi } from '@/lib/localApi';
 import { useQuery } from '@tanstack/react-query';
@@ -22,6 +22,9 @@ export default function RestaurantDetail() {
   const [showInfo, setShowInfo] = useState(false);
   const [sheetMeals, setSheetMeals] = useState(null);
   const [sheetIndex, setSheetIndex] = useState(0);
+  const infoPanelRef = useRef(null);
+  const mobileInfoToggleRef = useRef(null);
+  const desktopInfoToggleRef = useRef(null);
 
   const openSheet = (mealsList, idx) => { setSheetMeals(mealsList); setSheetIndex(idx); };
 
@@ -37,13 +40,37 @@ export default function RestaurantDetail() {
     },
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!restaurant) return;
     const canonicalSlug = toSlug(restaurant.name || restaurant.name_en || restaurant.id);
     if (slug !== canonicalSlug) {
       navigate(`/${canonicalSlug}`, { replace: true });
     }
   }, [restaurant, slug, navigate]);
+
+  useEffect(() => {
+    if (!showInfo) return undefined;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (
+        infoPanelRef.current?.contains(target) ||
+        mobileInfoToggleRef.current?.contains(target) ||
+        desktopInfoToggleRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setShowInfo(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [showInfo]);
 
   const restaurantId = restaurant?.id;
 
@@ -72,6 +99,7 @@ export default function RestaurantDetail() {
 
   const name = getLocalizedField(restaurant, 'name');
   const desc = getLocalizedField(restaurant, 'description');
+  const logoUrl = restaurant.logo_url || restaurant.cover_image;
   const hasInfo = desc || restaurant.address || restaurant.schedule || restaurant.phone;
 
   // Today's hours
@@ -196,6 +224,7 @@ export default function RestaurantDetail() {
           </div>
           {hasInfo && (
             <button
+              ref={mobileInfoToggleRef}
               onClick={() => setShowInfo((v) => !v)}
               aria-expanded={showInfo}
               className="absolute top-3 right-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white rounded-full p-2 transition-colors"
@@ -209,8 +238,8 @@ export default function RestaurantDetail() {
         <div className="hidden md:flex items-center gap-6 p-6 bg-card rounded-2xl border border-border/50 shadow-sm">
           {/* Logo */}
           <div className="h-24 w-24 rounded-2xl overflow-hidden bg-muted shrink-0 flex items-center justify-center border border-border/50">
-            {restaurant.cover_image ? (
-              <img src={restaurant.cover_image} alt={name} className="w-full h-full object-cover" />
+            {logoUrl ? (
+              <img src={logoUrl} alt={name} className="w-full h-full object-cover" />
             ) : (
               <span className="text-4xl">🍽️</span>
             )}
@@ -228,6 +257,7 @@ export default function RestaurantDetail() {
           </div>
           {hasInfo && (
             <button
+              ref={desktopInfoToggleRef}
               onClick={() => setShowInfo((v) => !v)}
               aria-expanded={showInfo}
               className="shrink-0 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-2 transition-colors"
@@ -243,6 +273,7 @@ export default function RestaurantDetail() {
       <AnimatePresence>
         {showInfo && hasInfo && (
           <motion.div
+            ref={infoPanelRef}
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}

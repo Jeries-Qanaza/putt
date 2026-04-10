@@ -12,6 +12,7 @@ export default function RestaurantCard({ restaurant, distance }) {
   const name = getLocalizedField(restaurant, 'name');
   const desc = getLocalizedField(restaurant, 'description');
   const slug = toSlug(restaurant.name || restaurant.name_en || restaurant.id);
+  const imageUrl = restaurant.cover_image || restaurant.logo_url;
 
   return (
     <motion.div
@@ -22,9 +23,9 @@ export default function RestaurantCard({ restaurant, distance }) {
       <Link to={`/${slug}`} aria-label={`View ${name} restaurant`}>
         <Card className="overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-card">
           <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-            {restaurant.cover_image ? (
+            {imageUrl ? (
               <img
-                src={restaurant.cover_image}
+                src={imageUrl}
                 alt={name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 loading="lazy"

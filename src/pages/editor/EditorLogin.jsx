@@ -34,7 +34,11 @@ export default function EditorLogin({ restaurant, onSuccess }) {
       <Card className="w-full max-w-sm border-0 shadow-lg">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto h-12 w-12 rounded-2xl bg-primary flex items-center justify-center">
-            <UtensilsCrossed className="h-6 w-6 text-primary-foreground" />
+            {restaurant.logo_url ? (
+              <img src={restaurant.logo_url} alt={restaurant.name} className="h-full w-full rounded-2xl object-cover" />
+            ) : (
+              <UtensilsCrossed className="h-6 w-6 text-primary-foreground" />
+            )}
           </div>
           <CardTitle className="text-xl">{restaurant.name}</CardTitle>
           <p className="text-sm text-muted-foreground">Editor Access</p>

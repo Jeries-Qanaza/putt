@@ -52,6 +52,7 @@ export default function RestaurantEditor() {
 
   // Check session auth
   const isAuthed = authenticated || (restaurant && sessionStorage.getItem(`editor_auth_${restaurant.id}`) === 'true');
+  const restaurantLogo = restaurant?.logo_url || restaurant?.cover_image;
 
   // Init info form when restaurant loads
   useEffect(() => {
@@ -132,8 +133,8 @@ export default function RestaurantEditor() {
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary overflow-hidden flex items-center justify-center">
-              {restaurant.cover_image ? (
-                <img src={restaurant.cover_image} alt={name} className="w-full h-full object-cover" />
+              {restaurantLogo ? (
+                <img src={restaurantLogo} alt={name} className="w-full h-full object-cover" />
               ) : (
                 <UtensilsCrossed className="h-4 w-4 text-primary-foreground" />
               )}

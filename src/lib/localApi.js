@@ -283,6 +283,10 @@ const normalizeRestaurant = (row) => ({
   ...row,
   name: row.name ?? row.name_en ?? '',
   description: row.description ?? row.description_en ?? '',
+  description_he: row.description_he ?? '',
+  description_ar: row.description_ar ?? '',
+  logo_url: row.logo_url ?? '',
+  schedule: normalizeSchedule(row.schedule),
 });
 
 const normalizeCategory = (row) => ({
@@ -331,6 +335,44 @@ const normalizeEntityRow = (entityName, row) => {
 };
 
 const normalizeEntityRows = (entityName, rows) => (rows || []).map((row) => normalizeEntityRow(entityName, row));
+
+function normalizeSchedule(schedule) {
+  if (!schedule || typeof schedule !== 'object') return schedule;
+
+  const dayMap = {
+    Sunday: 'Sun',
+    Monday: 'Mon',
+    Tuesday: 'Tue',
+    Wednesday: 'Wed',
+    Thursday: 'Thu',
+    Friday: 'Fri',
+    Saturday: 'Sat',
+    Sun: 'Sun',
+    Mon: 'Mon',
+    Tue: 'Tue',
+    Wed: 'Wed',
+    Thu: 'Thu',
+    Fri: 'Fri',
+    Sat: 'Sat',
+  };
+
+  return Object.entries(schedule).reduce((acc, [rawDay, value]) => {
+    const day = dayMap[rawDay] || rawDay;
+    const firstEntry = Array.isArray(value) ? value[0] : value;
+
+    if (!firstEntry || typeof firstEntry !== 'object') {
+      return acc;
+    }
+
+    acc[day] = {
+      open: firstEntry.open || '',
+      close: firstEntry.close || '',
+      closed: firstEntry.closed ?? false,
+    };
+
+    return acc;
+  }, {});
+}
 
 const shouldFallbackToLocal = (error) => {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
