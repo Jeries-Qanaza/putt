@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-// Unsplash photos per category keyword
 const CATEGORY_PHOTOS = {
   breakfast: 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400&q=80',
   coffee: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&q=80',
@@ -27,39 +26,38 @@ const CATEGORY_PHOTOS = {
 };
 
 function getCategoryPhoto(name) {
-  const n = name.toLowerCase();
+  const normalized = String(name || '').toLowerCase();
+
   for (const [key, url] of Object.entries(CATEGORY_PHOTOS)) {
-    if (n.includes(key)) return url;
+    if (normalized.includes(key)) return url;
   }
+
   return CATEGORY_PHOTOS.default;
 }
 
 export default function MenuCategoryGrid({ categories, onSelect }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {categories.map((cat, i) => (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      {categories.map((category, index) => (
         <motion.button
-          key={cat}
+          key={category}
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.05 }}
+          transition={{ delay: index * 0.05 }}
           whileTap={{ scale: 0.97 }}
-          onClick={() => onSelect(cat)}
-          className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow focus:outline-none focus:ring-2 focus:ring-primary"
+          onClick={() => onSelect(category)}
+          className="group relative aspect-[4/3] overflow-hidden rounded-2xl shadow-md transition-shadow hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary"
         >
-          {/* Photo */}
           <img
-            src={getCategoryPhoto(cat)}
-            alt={cat}
-            className="absolute inset-0 w-full h-full object-cover"
+            src={getCategoryPhoto(category)}
+            alt={category}
+            className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
           />
-          {/* Dark overlay */}
-          <div className="absolute inset-0 bg-black/50" />
-          {/* Text */}
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px]" />
           <div className="absolute inset-0 flex items-center justify-center p-3">
-            <span className="text-white font-bold text-base leading-tight text-center drop-shadow-lg">
-              {cat}
+            <span className="text-center text-base font-bold leading-tight text-white drop-shadow-lg transition-transform duration-200 group-hover:scale-110">
+              {category}
             </span>
           </div>
         </motion.button>

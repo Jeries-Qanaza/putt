@@ -185,6 +185,7 @@ const tableMap = {
   Meal: 'meals',
   Event: 'events',
   News: null,
+  DietaryTag: 'dietary_tags',
 };
 
 const sortFieldMap = {
@@ -194,6 +195,9 @@ const sortFieldMap = {
   },
   Category: {
     name: 'name_en',
+  },
+  DietaryTag: {
+    name: 'name',
   },
   Meal: {
     name: 'meal_name_en',
@@ -321,6 +325,12 @@ const normalizeNews = (row) => ({
   body: row.body ?? row.body_en ?? '',
 });
 
+const normalizeDietaryTag = (row) => ({
+  ...row,
+  name: row.name ?? '',
+  icon: row.icon ?? '',
+});
+
 const normalizeEntityRow = (entityName, row) => {
   if (!row) return row;
   switch (entityName) {
@@ -334,6 +344,8 @@ const normalizeEntityRow = (entityName, row) => {
       return normalizeEvent(row);
     case 'News':
       return normalizeNews(row);
+    case 'DietaryTag':
+      return normalizeDietaryTag(row);
     default:
       return row;
   }
@@ -584,5 +596,6 @@ export const localApi = {
     Meal: createEntityApi('Meal'),
     Event: createEntityApi('Event'),
     News: createEntityApi('News'),
+    DietaryTag: createEntityApi('DietaryTag'),
   },
 };

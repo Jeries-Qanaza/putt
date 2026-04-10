@@ -1,42 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import DietaryBadges from '@/components/shared/DietaryBadges';
 
-export default function MealDetailSheet({ meals, initialIndex, onClose }) {
+export default function MealDetailSheet({ meals, initialIndex, onClose, fallbackImage }) {
   const { t, getLocalizedField } = useI18n();
   const [index, setIndex] = useState(initialIndex ?? 0);
   const [direction, setDirection] = useState(0);
 
-  // Separate y motion for the whole sheet — only used for notch-drag-to-close
   const sheetY = useMotionValue(0);
   const sheetOpacity = useTransform(sheetY, [0, 200], [1, 0]);
-
-  // Track if currently swiping horizontally (to suppress vertical drag)
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const isDraggingHorizontally = useRef(false);
 
   const meal = meals[index];
   const name = getLocalizedField(meal, 'name');
   const desc = getLocalizedField(meal, 'description');
+  const imageUrl = meal.image_url || fallbackImage;
 
   const goNext = () => {
-    if (index < meals.length - 1) { setDirection(1); setIndex(i => i + 1); }
+    if (index < meals.length - 1) {
+      setDirection(1);
+      setIndex((value) => value + 1);
+    }
   };
+
   const goPrev = () => {
-    if (index > 0) { setDirection(-1); setIndex(i => i - 1); }
+    if (index > 0) {
+      setDirection(-1);
+      setIndex((value) => value - 1);
+    }
   };
 
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') goNext();
-      if (e.key === 'ArrowLeft') goPrev();
+    const onKey = (event) => {
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'ArrowRight') goNext();
+      if (event.key === 'ArrowLeft') goPrev();
     };
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index]);
+  }, [index, meals.length, onClose]);
 
   const variants = {
     enter: (dir) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
@@ -46,7 +50,6 @@ export default function MealDetailSheet({ meals, initialIndex, onClose }) {
 
   return (
     <AnimatePresence>
-      {/* Backdrop */}
       <motion.div
         key="backdrop"
         initial={{ opacity: 0 }}
@@ -56,7 +59,6 @@ export default function MealDetailSheet({ meals, initialIndex, onClose }) {
         onClick={onClose}
       />
 
-      {/* Sheet — only draggable from notch area */}
       <motion.div
         key="sheet"
         style={{ y: sheetY, opacity: sheetOpacity }}
@@ -64,11 +66,10 @@ export default function MealDetailSheet({ meals, initialIndex, onClose }) {
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 z-[201] bg-card rounded-t-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:left-1/2 md:right-auto md:top-1/2 md:bottom-auto md:w-[60vw] md:max-w-4xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl"
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* Image at the very top — corners clipped by sheet's rounded-t-3xl */}
-        <div className="relative w-full aspect-video bg-muted shrink-0 overflow-hidden">
+        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:aspect-[16/6]">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={`img-${index}`}
@@ -80,53 +81,46 @@ export default function MealDetailSheet({ meals, initialIndex, onClose }) {
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="absolute inset-0"
             >
-              {meal.image_url ? (
-                <img src={meal.image_url} alt={name} className="w-full h-full object-cover" />
+              {imageUrl ? (
+                <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-6xl">
-                  🍽️
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-6xl">
+                  *
                 </div>
               )}
             </motion.div>
           </AnimatePresence>
 
-          {/* Notch overlay on top of image — drag here to close */}
           <motion.div
-            className="absolute top-0 left-0 right-0 flex justify-center pt-3 pb-4 cursor-grab active:cursor-grabbing z-10"
+            className="absolute left-0 right-0 top-0 z-10 flex cursor-grab justify-center pt-3 pb-4 active:cursor-grabbing"
             drag="y"
             dragConstraints={{ top: 0 }}
             dragElastic={{ top: 0, bottom: 0.4 }}
             style={{ y: sheetY }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 100) {
-                onClose();
-              } else {
-                sheetY.set(0);
-              }
+              if (info.offset.y > 100) onClose();
+              else sheetY.set(0);
             }}
           >
-            <div className="w-10 h-1.5 rounded-full bg-white/70 shadow" />
+            <div className="h-1.5 w-10 rounded-full bg-white/70 shadow" />
           </motion.div>
 
-          {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 z-20 h-8 w-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+            className="absolute top-3 right-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
 
-          {/* Counter */}
-          {meals.length > 1 && (
-            <div className="absolute top-3 left-3 z-20 text-xs text-white bg-black/40 px-2.5 py-1 rounded-full font-medium">
+          {meals.length > 1 ? (
+            <div className="absolute top-3 left-3 z-20 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white">
               {index + 1} / {meals.length}
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Swipeable info area */}
-        <div className="overflow-hidden flex-1">
+        <div className="flex-1 overflow-hidden">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={index}
@@ -143,39 +137,41 @@ export default function MealDetailSheet({ meals, initialIndex, onClose }) {
                 if (info.offset.x < -80) goNext();
                 else if (info.offset.x > 80) goPrev();
               }}
-              className="select-none p-5 space-y-3 overflow-y-auto max-h-[40vh]"
+              className="max-h-[42vh] select-none space-y-3 overflow-y-auto p-5 md:max-h-[40vh]"
             >
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-xl font-bold text-foreground leading-tight">{name}</h2>
-                <span className="text-2xl font-bold text-primary shrink-0">
-                  {t('currency')}{meal.price}
+                <h2 className="text-xl font-bold leading-tight text-foreground">{name}</h2>
+                <span className="shrink-0 text-2xl font-bold text-primary">
+                  {t('currency')}
+                  {meal.price}
                 </span>
               </div>
-              {desc && <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>}
+              {desc ? <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p> : null}
               <DietaryBadges tags={meal.dietary_tags} size="md" />
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Prev / Next arrows */}
-        {meals.length > 1 && (
-          <div className="flex justify-between px-4 pb-5 pt-1 gap-3 shrink-0">
+        {meals.length > 1 ? (
+          <div className="flex shrink-0 justify-between gap-3 px-4 pt-1 pb-5">
             <button
               onClick={goPrev}
               disabled={index === 0}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium disabled:opacity-30 hover:bg-secondary/80 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-30"
             >
-              <ChevronLeft className="h-4 w-4" /> Prev
+              <ChevronLeft className="h-4 w-4" />
+              Prev
             </button>
             <button
               onClick={goNext}
               disabled={index === meals.length - 1}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium disabled:opacity-30 hover:bg-secondary/80 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-30"
             >
-              Next <ChevronRight className="h-4 w-4" />
+              Next
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-        )}
+        ) : null}
       </motion.div>
     </AnimatePresence>
   );

@@ -1,12 +1,13 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import DietaryBadges from '@/components/shared/DietaryBadges';
-import { motion } from 'framer-motion';
 
-export default function MealCard({ meal, index = 0, onClick }) {
+export default function MealCard({ meal, index = 0, onClick, fallbackImage }) {
   const { t, getLocalizedField } = useI18n();
   const name = getLocalizedField(meal, 'name');
   const desc = getLocalizedField(meal, 'description');
+  const imageUrl = meal.image_url || fallbackImage;
 
   return (
     <motion.div
@@ -16,36 +17,28 @@ export default function MealCard({ meal, index = 0, onClick }) {
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-      className={`flex gap-4 items-start bg-card rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-border/50 ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+      onKeyDown={onClick ? (event) => event.key === 'Enter' && onClick() : undefined}
+      className={`flex items-start gap-4 overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm transition-all duration-200 hover:shadow-md ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
     >
-      {/* Image - always shown, placeholder if missing */}
-      <div className="w-28 h-28 shrink-0 bg-muted overflow-hidden rounded-none">
-        {meal.image_url ? (
-          <img
-            src={meal.image_url}
-            alt={name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+      <div className="h-28 w-28 shrink-0 overflow-hidden rounded-none bg-muted">
+        {imageUrl ? (
+          <img src={imageUrl} alt={name} className="h-full w-full object-cover" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-3xl">
-            🍽️
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-3xl">
+            *
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="flex-1 py-3 pr-3 space-y-1 min-w-0">
+      <div className="min-w-0 flex-1 space-y-1 py-3 pr-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-foreground text-base leading-tight">{name}</h3>
-          <span className="font-bold text-primary whitespace-nowrap text-sm shrink-0 ps-3">
-            {t('currency')}{meal.price}
+          <h3 className="text-base font-semibold leading-tight text-foreground">{name}</h3>
+          <span className="shrink-0 whitespace-nowrap ps-3 text-sm font-bold text-primary">
+            {t('currency')}
+            {meal.price}
           </span>
         </div>
-        {desc && (
-          <p className="text-sm text-muted-foreground line-clamp-2 leading-snug">{desc}</p>
-        )}
+        {desc ? <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">{desc}</p> : null}
         <DietaryBadges tags={meal.dietary_tags} size="sm" />
       </div>
     </motion.div>
