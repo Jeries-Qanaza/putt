@@ -202,8 +202,8 @@ export default function RestaurantEditor() {
                     </div>
                     {meal.description && <p className="text-xs text-muted-foreground line-clamp-2">{meal.description}</p>}
                     <DietaryBadges tags={meal.dietary_tags} />
-                    <Badge variant={meal.is_available !== false ? 'default' : 'secondary'} className="text-xs">
-                      {meal.is_available !== false ? t('available') : t('unavailable')}
+                    <Badge variant={(meal.status ?? meal.is_available ?? true) ? 'default' : 'secondary'} className="text-xs">
+                      {(meal.status ?? meal.is_available ?? true) ? t('active') : 'Archived'}
                     </Badge>
                   </CardContent>
                 </Card>

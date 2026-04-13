@@ -37,13 +37,20 @@ export default function MealForm({ meal, restaurantId, onClose }) {
     menu_category_he: meal?.menu_category_he || '',
     menu_category_ar: meal?.menu_category_ar || '',
     dietary_tags: meal?.dietary_tags || [],
-    is_available: meal?.is_available !== false,
+    status: meal?.status ?? meal?.is_available ?? true,
     sort_order: meal?.sort_order || 0,
   });
 
   const mutation = useMutation({
     mutationFn: (data) => {
-      const payload = { ...data, price: Number(data.price), sort_order: Number(data.sort_order), restaurant_id: restaurantId };
+      const payload = {
+        ...data,
+        status: data.status !== false,
+        is_available: data.status !== false,
+        price: Number(data.price),
+        sort_order: Number(data.sort_order),
+        restaurant_id: restaurantId,
+      };
       if (isEditing) return localApi.entities.Meal.update(meal.id, payload);
       return localApi.entities.Meal.create(payload);
     },
@@ -115,8 +122,8 @@ export default function MealForm({ meal, restaurantId, onClose }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <Switch checked={form.is_available} onCheckedChange={(v) => setForm({ ...form, is_available: v })} />
-            <Label>{form.is_available ? t('available') : t('unavailable')}</Label>
+            <Switch checked={form.status} onCheckedChange={(value) => setForm({ ...form, status: value })} />
+            <Label>{form.status ? t('active') : t('inactive')}</Label>
           </div>
 
           <DialogFooter>

@@ -102,7 +102,10 @@ export default function RestaurantDetail() {
 
   const { data: meals = [], isLoading: loadingMeals } = useQuery({
     queryKey: ['meals', restaurantId],
-    queryFn: () => localApi.entities.Meal.filter({ restaurant_id: restaurantId, is_available: true }, 'sort_order'),
+    queryFn: async () => {
+      const results = await localApi.entities.Meal.filter({ restaurant_id: restaurantId }, 'sort_order');
+      return results.filter((meal) => (meal.status ?? meal.is_available ?? true) !== false);
+    },
     enabled: !!restaurantId,
   });
 
@@ -329,21 +332,23 @@ export default function RestaurantDetail() {
             )}
           </>
         ) : (
-          <div className="space-y-5">
-            <button
-              onClick={() => setSelectedCategoryKey(null)}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t('back')}
-            </button>
+          <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
+            <div className="sticky top-14 z-20 space-y-3 border-b border-border/50 bg-card/95 px-4 py-4 backdrop-blur md:top-16 md:px-5">
+              <button
+                onClick={() => setSelectedCategoryKey(null)}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {t('back')}
+              </button>
 
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">{selectedSection.label}</h2>
-              <p className="text-sm text-muted-foreground">{selectedSection.meals.length} items</p>
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">{selectedSection.label}</h2>
+                <p className="text-sm text-muted-foreground">{selectedSection.meals.length} items</p>
+              </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto p-4 md:max-h-[calc(100vh-16rem)] md:p-5">
               {selectedSection.meals.map((meal, index) => (
                 <MealCard
                   key={meal.id}

@@ -93,6 +93,7 @@ const seedData = {
       menu_category_he: 'משקאות קרים',
       menu_category_ar: 'مشروبات باردة',
       dietary_tags: ['vegetarian'],
+      status: true,
       is_available: true,
       sort_order: 1,
     },
@@ -113,6 +114,7 @@ const seedData = {
       menu_category_he: 'ארוחות בוקר',
       menu_category_ar: 'فطور',
       dietary_tags: ['vegetarian'],
+      status: true,
       is_available: true,
       sort_order: 2,
     },
@@ -133,6 +135,7 @@ const seedData = {
       menu_category_he: 'עיקריות',
       menu_category_ar: 'الأطباق الرئيسية',
       dietary_tags: ['halal'],
+      status: true,
       is_available: true,
       sort_order: 1,
     },
@@ -311,6 +314,8 @@ const normalizeMeal = (row) => ({
   description: row.description ?? row.meal_description_en ?? '',
   description_he: row.description_he ?? row.meal_description_he ?? '',
   description_ar: row.description_ar ?? row.meal_description_ar ?? '',
+  status: row.status ?? row.is_available ?? true,
+  is_available: row.is_available ?? row.status ?? true,
 });
 
 const normalizeEvent = (row) => ({
@@ -475,8 +480,17 @@ const createEntityApi = (entityName) => ({
   },
 
   async create(payload) {
+    const normalizedPayload =
+      entityName === 'Meal'
+        ? {
+            ...payload,
+            status: payload.status ?? payload.is_available ?? true,
+            is_available: payload.is_available ?? payload.status ?? true,
+          }
+        : payload;
+
     const remoteData = await runSupabase(entityName, async (table) => {
-      const { data, error } = await table.insert(payload).select().single();
+      const { data, error } = await table.insert(normalizedPayload).select().single();
       if (error) throw error;
       return normalizeEntityRow(entityName, data);
     });
@@ -490,7 +504,7 @@ const createEntityApi = (entityName) => ({
       id: createId(entityName),
       created_date: now,
       updated_date: now,
-      ...payload,
+      ...normalizedPayload,
     };
 
     writeCollection(entityName, (items) => [...items, record]);
@@ -498,9 +512,18 @@ const createEntityApi = (entityName) => ({
   },
 
   async update(id, payload) {
+    const normalizedPayload =
+      entityName === 'Meal'
+        ? {
+            ...payload,
+            status: payload.status ?? payload.is_available ?? true,
+            is_available: payload.is_available ?? payload.status ?? true,
+          }
+        : payload;
+
     const remoteData = await runSupabase(entityName, async (table) => {
       const { data, error } = await table
-        .update(payload)
+        .update(normalizedPayload)
         .eq('id', id)
         .select()
         .single();
@@ -518,7 +541,7 @@ const createEntityApi = (entityName) => ({
     writeCollection(entityName, (items) =>
       items.map((item) => {
         if (item.id !== id) return item;
-        updatedRecord = { ...item, ...payload, id, updated_date: now };
+        updatedRecord = { ...item, ...normalizedPayload, id, updated_date: now };
         return updatedRecord;
       })
     );
