@@ -22,6 +22,7 @@ export default function RestaurantForm({ restaurant, onClose }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const isEditing = !!restaurant;
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -64,8 +65,12 @@ export default function RestaurantForm({ restaurant, onClose }) {
       return localApi.entities.Restaurant.create(payload);
     },
     onSuccess: () => {
+      setSubmitError('');
       queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] });
       onClose();
+    },
+    onError: (error) => {
+      setSubmitError(error?.message || 'Failed to save restaurant to Supabase.');
     },
   });
 
@@ -73,6 +78,7 @@ export default function RestaurantForm({ restaurant, onClose }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    setSubmitError('');
     mutation.mutate(form);
   };
 
@@ -136,6 +142,8 @@ export default function RestaurantForm({ restaurant, onClose }) {
             <Switch checked={form.is_active} onCheckedChange={(value) => handleChange('is_active', value)} />
             <Label>{form.is_active ? t('active') : t('inactive')}</Label>
           </div>
+
+          {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>

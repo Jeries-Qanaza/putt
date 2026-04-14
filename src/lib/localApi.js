@@ -285,10 +285,115 @@ const getTableName = (entityName) =>
     ? tableMap[entityName]
     : entityName.toLowerCase();
 const remoteEntityDisabled = new Set();
+const unsupportedRemoteFields = new Map();
+
+const getUnsupportedFieldSet = (entityName) => {
+  if (!unsupportedRemoteFields.has(entityName)) {
+    unsupportedRemoteFields.set(entityName, new Set());
+  }
+
+  return unsupportedRemoteFields.get(entityName);
+};
+
+const omitUnsupportedRemoteFields = (entityName, payload) => {
+  const unsupportedFields = getUnsupportedFieldSet(entityName);
+
+  if (!unsupportedFields.size || !payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  return Object.fromEntries(
+    Object.entries(payload).filter(([field]) => !unsupportedFields.has(field))
+  );
+};
+
+const getMissingColumnName = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`;
+  const match = message.match(/'([^']+)' column/i);
+  return match?.[1] || null;
+};
+
+const retryWithoutMissingColumns = async (entityName, payload, executor) => {
+  let candidatePayload = omitUnsupportedRemoteFields(entityName, payload);
+
+  for (;;) {
+    try {
+      return await executor(candidatePayload);
+    } catch (error) {
+      const missingColumn = getMissingColumnName(error);
+
+      if (!missingColumn || !(missingColumn in candidatePayload)) {
+        throw error;
+      }
+
+      getUnsupportedFieldSet(entityName).add(missingColumn);
+      candidatePayload = omitUnsupportedRemoteFields(entityName, candidatePayload);
+    }
+  }
+};
 
 const mapFieldName = (entityName, field) => {
   if (!field) return field;
   return sortFieldMap[entityName]?.[field] || field;
+};
+
+const serializeRestaurantPayload = (payload) => ({
+  address: payload.address ?? '',
+  categories: payload.categories ?? [],
+  cover_image: payload.cover_image ?? '',
+  description_ar: payload.description_ar ?? '',
+  description_en: payload.description ?? payload.description_en ?? '',
+  description_he: payload.description_he ?? '',
+  editor_password: payload.editor_password ?? '',
+  editor_username: payload.editor_username ?? '',
+  is_active: payload.is_active ?? true,
+  latitude: payload.latitude ?? null,
+  logo_url: payload.logo_url ?? '',
+  longitude: payload.longitude ?? null,
+  manager_email: payload.manager_email ?? '',
+  manager_name: payload.manager_name ?? '',
+  manager_phone: payload.manager_phone ?? '',
+  name_ar: payload.name_ar ?? '',
+  name_en: payload.name ?? payload.name_en ?? '',
+  name_he: payload.name_he ?? '',
+  phone: payload.phone ?? '',
+  schedule: payload.schedule ?? null,
+});
+
+const serializeMealPayload = (payload) => ({
+  ...payload,
+  meal_name_en: payload.name ?? payload.meal_name_en ?? '',
+  meal_name_he: payload.name_he ?? payload.meal_name_he ?? '',
+  meal_name_ar: payload.name_ar ?? payload.meal_name_ar ?? '',
+  meal_description_en: payload.description ?? payload.meal_description_en ?? '',
+  meal_description_he: payload.description_he ?? payload.meal_description_he ?? '',
+  meal_description_ar: payload.description_ar ?? payload.meal_description_ar ?? '',
+});
+
+const serializeCategoryPayload = (payload) => ({
+  ...payload,
+  name_en: payload.name ?? payload.name_en ?? '',
+});
+
+const serializeEventPayload = (payload) => ({
+  ...payload,
+  title_en: payload.title ?? payload.title_en ?? '',
+  description_en: payload.description ?? payload.description_en ?? '',
+});
+
+const serializeEntityPayload = (entityName, payload) => {
+  switch (entityName) {
+    case 'Restaurant':
+      return serializeRestaurantPayload(payload);
+    case 'Meal':
+      return serializeMealPayload(payload);
+    case 'Category':
+      return serializeCategoryPayload(payload);
+    case 'Event':
+      return serializeEventPayload(payload);
+    default:
+      return payload;
+  }
 };
 
 const normalizeRestaurant = (row) => ({
@@ -409,7 +514,7 @@ const shouldFallbackToLocal = (error) => {
   );
 };
 
-const runSupabase = async (entityName, callback) => {
+const runSupabase = async (entityName, callback, options = {}) => {
   if (!isSupabaseConfigured) return null;
   if (remoteEntityDisabled.has(entityName)) return null;
 
@@ -419,6 +524,9 @@ const runSupabase = async (entityName, callback) => {
   try {
     return await callback(supabase.from(tableName));
   } catch (error) {
+    if (!options.allowFallback) {
+      throw error;
+    }
     if (shouldFallbackToLocal(error)) {
       remoteEntityDisabled.add(entityName);
       return null;
@@ -488,12 +596,16 @@ const createEntityApi = (entityName) => ({
             is_available: payload.is_available ?? payload.status ?? true,
           }
         : payload;
+    const serializedPayload = serializeEntityPayload(entityName, normalizedPayload);
 
     const remoteData = await runSupabase(entityName, async (table) => {
-      const { data, error } = await table.insert(normalizedPayload).select().single();
-      if (error) throw error;
-      return normalizeEntityRow(entityName, data);
-    });
+      const executeInsert = async (candidatePayload) => {
+        const { data, error } = await table.insert(candidatePayload).select().single();
+        if (error) throw error;
+        return normalizeEntityRow(entityName, data);
+      };
+      return retryWithoutMissingColumns(entityName, serializedPayload, executeInsert);
+    }, { allowFallback: false });
 
     if (remoteData) {
       return remoteData;
@@ -520,16 +632,20 @@ const createEntityApi = (entityName) => ({
             is_available: payload.is_available ?? payload.status ?? true,
           }
         : payload;
+    const serializedPayload = serializeEntityPayload(entityName, normalizedPayload);
 
     const remoteData = await runSupabase(entityName, async (table) => {
-      const { data, error } = await table
-        .update(normalizedPayload)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-      return normalizeEntityRow(entityName, data);
-    });
+      const executeUpdate = async (candidatePayload) => {
+        const { data, error } = await table
+          .update(candidatePayload)
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return normalizeEntityRow(entityName, data);
+      };
+      return retryWithoutMissingColumns(entityName, serializedPayload, executeUpdate);
+    }, { allowFallback: false });
 
     if (remoteData) {
       return remoteData;
@@ -558,7 +674,7 @@ const createEntityApi = (entityName) => ({
       const { data, error } = await table.delete().eq('id', id).select().single();
       if (error) throw error;
       return normalizeEntityRow(entityName, data);
-    });
+    }, { allowFallback: false });
 
     if (remoteData) {
       return remoteData;
