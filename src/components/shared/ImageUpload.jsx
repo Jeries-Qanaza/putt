@@ -2,25 +2,26 @@ import React, { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Loader2 } from 'lucide-react';
+import { prepareImageForUpload } from '@/lib/imageUpload';
 
 export default function ImageUpload({ value, onChange, className = '' }) {
   const { t } = useI18n();
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setError('');
     try {
-      const fileUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Failed to read file.'));
-        reader.readAsDataURL(file);
-      });
+      const fileUrl = await prepareImageForUpload(file);
       onChange(fileUrl);
+    } catch (uploadError) {
+      setError(uploadError.message || 'Failed to process image.');
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -52,6 +53,7 @@ export default function ImageUpload({ value, onChange, className = '' }) {
           <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
       )}
+      {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

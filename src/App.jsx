@@ -19,9 +19,6 @@ import RestaurantEditor from '@/pages/editor/RestaurantEditor';
 // Admin pages
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminRestaurants from '@/pages/admin/AdminRestaurants';
-import AdminCategories from '@/pages/admin/AdminCategories';
-import AdminMeals from '@/pages/admin/AdminMeals';
-import AdminNews from '@/pages/admin/AdminNews';
 
 
 
@@ -59,9 +56,6 @@ const AuthenticatedApp = () => {
       <Route element={<AdminLayout />}>
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/restaurants" element={<AdminRestaurants />} />
-        <Route path="/admin/categories" element={<AdminCategories />} />
-        <Route path="/admin/meals" element={<AdminMeals />} />
-        <Route path="/admin/events" element={<AdminNews />} />
       </Route>
 
       <Route path="*" element={<PageNotFound />} />

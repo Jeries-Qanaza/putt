@@ -3,6 +3,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+  const { onChange, maxLength, ...restProps } = props
+
   return (
     (<input
       type={type}
@@ -11,7 +13,14 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
         className
       )}
       ref={ref}
-      {...props} />)
+      maxLength={maxLength ?? (type === "number" ? undefined : 80)}
+      onChange={(event) => {
+        if (type !== "number" && typeof event.target.value === "string") {
+          event.target.value = event.target.value.replace(/[<>]/g, "")
+        }
+        onChange?.(event)
+      }}
+      {...restProps} />)
   );
 })
 Input.displayName = "Input"

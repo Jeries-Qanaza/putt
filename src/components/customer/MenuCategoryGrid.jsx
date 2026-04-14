@@ -35,6 +35,8 @@ function getCategoryPhoto(name) {
   return CATEGORY_PHOTOS.default;
 }
 
+export { getCategoryPhoto };
+
 export default function MenuCategoryGrid({ categories, onSelect }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -52,7 +54,7 @@ export default function MenuCategoryGrid({ categories, onSelect }) {
             src={getCategoryPhoto(category)}
             alt={category}
             className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
+            loading="eager"
           />
           <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px]" />
           <div className="absolute inset-0 flex items-center justify-center p-3">

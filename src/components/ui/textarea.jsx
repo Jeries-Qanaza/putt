@@ -3,6 +3,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const Textarea = React.forwardRef(({ className, ...props }, ref) => {
+  const { onChange, maxLength, ...restProps } = props
+
   return (
     (<textarea
       className={cn(
@@ -10,7 +12,14 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => {
         className
       )}
       ref={ref}
-      {...props} />)
+      maxLength={maxLength ?? 240}
+      onChange={(event) => {
+        if (typeof event.target.value === "string") {
+          event.target.value = event.target.value.replace(/[<>]/g, "")
+        }
+        onChange?.(event)
+      }}
+      {...restProps} />)
   );
 })
 Textarea.displayName = "Textarea"

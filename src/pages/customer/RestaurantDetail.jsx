@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import ScheduleDisplay from '@/components/shared/ScheduleDisplay';
 import MealCard from '@/components/customer/MealCard';
 import MealDetailSheet from '@/components/customer/MealDetailSheet';
-import MenuCategoryGrid from '@/components/customer/MenuCategoryGrid';
+import MenuCategoryGrid, { getCategoryPhoto } from '@/components/customer/MenuCategoryGrid';
 import { toSlug } from '@/lib/slugify';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -56,6 +56,9 @@ export default function RestaurantDetail() {
   const [selectedCategoryKey, setSelectedCategoryKey] = useState(null);
   const [sheetMeals, setSheetMeals] = useState(null);
   const [sheetIndex, setSheetIndex] = useState(0);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeMinElapsed, setWelcomeMinElapsed] = useState(false);
+  const [categoryAssetsReady, setCategoryAssetsReady] = useState(false);
   const infoPanelRef = useRef(null);
   const mobileInfoToggleRef = useRef(null);
   const desktopInfoToggleRef = useRef(null);
@@ -107,19 +110,31 @@ export default function RestaurantDetail() {
 
   const restaurantId = restaurant?.id;
 
+  useEffect(() => {
+    if (!restaurantId) return;
+    setShowWelcome(true);
+    setWelcomeMinElapsed(false);
+    setCategoryAssetsReady(false);
+
+    const timer = window.setTimeout(() => setWelcomeMinElapsed(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [restaurantId]);
+
+  const { data: categories = [], isLoading: loadingCategories } = useQuery({
+    queryKey: ['restaurant-categories', restaurantId],
+    queryFn: () => localApi.entities.Category.filter({ restaurant_id: restaurantId }, 'sort_order'),
+    enabled: !!restaurantId,
+  });
+
+  const categoriesReady = !!restaurantId && !loadingCategories;
+
   const { data: meals = [], isLoading: loadingMeals } = useQuery({
     queryKey: ['meals', restaurantId],
     queryFn: async () => {
       const results = await localApi.entities.Meal.filter({ restaurant_id: restaurantId }, 'sort_order');
       return results.filter((meal) => (meal.status ?? meal.is_available ?? true) !== false);
     },
-    enabled: !!restaurantId,
-  });
-
-  const { data: categories = [], isLoading: loadingCategories } = useQuery({
-    queryKey: ['restaurant-categories', restaurantId],
-    queryFn: () => localApi.entities.Category.filter({ restaurant_id: restaurantId }, 'sort_order'),
-    enabled: !!restaurantId,
+    enabled: !!restaurantId && categoriesReady,
   });
 
   const name = getLocalizedField(restaurant, 'name');
@@ -148,6 +163,38 @@ export default function RestaurantDetail() {
   }, [categories]);
 
   const topLevelCategories = useMemo(() => categoryChildrenByParentId.root || [], [categoryChildrenByParentId]);
+
+  useEffect(() => {
+    if (!showWelcome || !restaurantId || !categoriesReady) return;
+
+    const labelsToPreload = (topLevelCategories.length > 0 ? topLevelCategories : categories)
+      .map((category) => getLocalizedField(category, 'name'))
+      .filter(Boolean);
+
+    if (labelsToPreload.length === 0) {
+      setCategoryAssetsReady(true);
+      return;
+    }
+
+    let active = true;
+
+    Promise.allSettled(
+      labelsToPreload.map((label) => {
+        return new Promise((resolve) => {
+          const image = new Image();
+          image.onload = resolve;
+          image.onerror = resolve;
+          image.src = getCategoryPhoto(label);
+        });
+      })
+    ).then(() => {
+      if (active) setCategoryAssetsReady(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [showWelcome, restaurantId, categoriesReady, topLevelCategories, categories, getLocalizedField]);
 
   const categorySections = useMemo(() => {
     const mealsByMenuCategory = meals.reduce((acc, meal) => {
@@ -190,9 +237,7 @@ export default function RestaurantDetail() {
 
         const parentKey = normalizeCategoryKey(category.name || category.name_en);
         const parentMatch = mealsByMenuCategory[parentKey];
-        if (parentMatch) {
-          usedMealKeys.add(parentKey);
-        }
+        if (parentMatch) usedMealKeys.add(parentKey);
 
         const allMeals = [
           ...(parentMatch?.meals || []),
@@ -248,6 +293,14 @@ export default function RestaurantDetail() {
     setSelectedCategoryKey(null);
   }, [selectedCategoryKey, categorySections]);
 
+  useEffect(() => {
+    if (!showWelcome || !restaurantId) return;
+    if (!welcomeMinElapsed || !categoryAssetsReady) return;
+
+    const timer = window.setTimeout(() => setShowWelcome(false), 250);
+    return () => window.clearTimeout(timer);
+  }, [showWelcome, restaurantId, welcomeMinElapsed, categoryAssetsReady]);
+
   const selectedSection = categorySections.find((section) => section.key === selectedCategoryKey);
   const openState = useMemo(() => getRestaurantOpenState(restaurant?.schedule), [restaurant?.schedule]);
 
@@ -273,54 +326,84 @@ export default function RestaurantDetail() {
     );
   }
 
-  const categoriesLoading = loadingMeals || loadingCategories;
+  const categoriesLoading = loadingCategories || loadingMeals || (showWelcome && !categoryAssetsReady);
 
   return (
     <div className="space-y-5 py-2 md:py-6">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="hidden items-center gap-6 rounded-2xl border border-border/50 bg-card p-6 shadow-sm md:flex">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-muted">
-            {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-cover" /> : <span className="text-4xl">*</span>}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{name}</h1>
-          </div>
-          {hasInfo ? (
-            <button
-              ref={desktopInfoToggleRef}
-              onClick={() => setShowInfo((value) => !value)}
-              aria-expanded={showInfo}
-              className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      <AnimatePresence>
+        {showWelcome ? (
+          <motion.div
+            key="restaurant-welcome"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] flex items-center justify-center bg-background px-6"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 260 }}
+              className="flex max-w-xl flex-col items-center rounded-3xl border border-border/50 bg-card px-8 py-10 text-center shadow-lg"
             >
-              <Info className="h-4 w-4" />
-              Info
-            </button>
-          ) : null}
-        </div>
+              <motion.div
+                initial={{ rotate: 0, scale: 0.9 }}
+                animate={{ rotate: 360, scale: 1 }}
+                transition={{ duration: 2, ease: 'easeInOut' }}
+                className="mb-6 flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border border-border/50 bg-white shadow-sm"
+              >
+                {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-contain p-2" /> : <span className="text-4xl">*</span>}
+              </motion.div>
+              <p className="mb-2 text-sm font-medium uppercase tracking-[0.25em] text-muted-foreground">Welcome to</p>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-5xl">{name}</h1>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
-        <div className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-border/50 bg-card p-4 shadow-sm md:hidden">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted">
-            {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-cover" /> : <span className="text-4xl">*</span>}
+      {!selectedSection ? (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="hidden items-center gap-6 rounded-2xl border border-border/50 bg-card p-6 shadow-sm md:flex">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-muted">
+              {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-cover" /> : <span className="text-4xl">*</span>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-3xl font-bold text-foreground">{name}</h1>
+            </div>
+            {hasInfo ? (
+              <button
+                ref={desktopInfoToggleRef}
+                onClick={() => setShowInfo((value) => !value)}
+                aria-expanded={showInfo}
+                className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Info className="h-4 w-4" />
+                Info
+              </button>
+            ) : null}
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold leading-tight text-foreground">{name}</h1>
+          <div className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-border/50 bg-card p-4 shadow-sm md:hidden">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted">
+              {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-cover" /> : <span className="text-4xl">*</span>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold leading-tight text-foreground">{name}</h1>
+            </div>
+            {hasInfo ? (
+              <button
+                ref={mobileInfoToggleRef}
+                onClick={() => setShowInfo((value) => !value)}
+                aria-expanded={showInfo}
+                className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Info className="h-4 w-4" />
+                Info
+              </button>
+            ) : null}
           </div>
-          {hasInfo ? (
-            <button
-              ref={mobileInfoToggleRef}
-              onClick={() => setShowInfo((value) => !value)}
-              aria-expanded={showInfo}
-              className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Info className="h-4 w-4" />
-              Info
-            </button>
-          ) : null}
-        </div>
-      </motion.div>
+        </motion.div>
+      ) : null}
 
       <AnimatePresence>
-        {showInfo && hasInfo ? (
+        {showInfo && hasInfo && !selectedSection ? (
           <motion.div
             ref={infoPanelRef}
             initial={{ opacity: 0, height: 0 }}
@@ -414,8 +497,8 @@ export default function RestaurantDetail() {
             )}
           </>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
-            <div className="sticky top-14 z-20 space-y-2 border-b border-border/50 bg-card/95 px-4 py-3 backdrop-blur md:top-16 md:px-5">
+          <div className="flex max-h-[calc(100vh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm md:max-h-[calc(100vh-6.5rem)]">
+            <div className="sticky top-0 z-20 space-y-2 border-b border-border/50 bg-card/95 px-4 py-2 backdrop-blur md:px-5">
               <button
                 onClick={() => setSelectedCategoryKey(null)}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
@@ -430,7 +513,7 @@ export default function RestaurantDetail() {
               </div>
             </div>
 
-            <div className="max-h-[calc(100vh-15rem)] overflow-y-auto px-4 pb-4 pt-3 md:max-h-[calc(100vh-13rem)] md:px-5 md:pb-5 md:pt-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 md:px-5 md:pb-5 md:pt-5">
               <div className="space-y-5">
                 {selectedSection.groups.map((group) => (
                   <section key={group.key} className="space-y-3">
@@ -440,6 +523,7 @@ export default function RestaurantDetail() {
                         <p className="text-xs text-muted-foreground">{group.meals.length} items</p>
                       </div>
                     ) : null}
+
                     <div className="space-y-3">
                       {group.meals.map((meal, index) => (
                         <MealCard
