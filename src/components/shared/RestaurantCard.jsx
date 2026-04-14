@@ -27,7 +27,7 @@ export default function RestaurantCard({ restaurant, distance }) {
               <img
                 src={imageUrl}
                 alt={name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="h-full w-full bg-white object-contain p-3 transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
               />
             ) : (

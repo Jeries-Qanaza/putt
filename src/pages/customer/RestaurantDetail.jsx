@@ -41,6 +41,13 @@ function getRestaurantOpenState(schedule) {
   return { todaySchedule, isClosed: !isOpenNow };
 }
 
+function normalizeCategoryKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, ' ');
+}
+
 export default function RestaurantDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -125,41 +132,116 @@ export default function RestaurantDetail() {
 
   const categoryMetaByName = useMemo(() => {
     return categories.reduce((acc, category) => {
-      const key = category.name || category.name_en;
+      const key = normalizeCategoryKey(category.name || category.name_en);
       if (key) acc[key] = category;
       return acc;
     }, {});
   }, [categories]);
 
-  const groupedMeals = useMemo(() => {
-    return meals.reduce((acc, meal) => {
-      const key = meal.menu_category || t('menu');
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(meal);
+  const categoryChildrenByParentId = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      const parentKey = category.parent_id || 'root';
+      if (!acc[parentKey]) acc[parentKey] = [];
+      acc[parentKey].push(category);
       return acc;
     }, {});
-  }, [meals, t]);
+  }, [categories]);
+
+  const topLevelCategories = useMemo(() => categoryChildrenByParentId.root || [], [categoryChildrenByParentId]);
 
   const categorySections = useMemo(() => {
-    const keys = Object.keys(groupedMeals);
-
-    return keys
-      .sort((left, right) => {
-        const leftOrder = categoryMetaByName[left]?.sort_order ?? Number.MAX_SAFE_INTEGER;
-        const rightOrder = categoryMetaByName[right]?.sort_order ?? Number.MAX_SAFE_INTEGER;
-        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-        return left.localeCompare(right);
-      })
-      .map((key) => {
-        const meta = categoryMetaByName[key];
-
-        return {
-          key,
-          label: meta ? getLocalizedField(meta, 'name') : key,
-          meals: groupedMeals[key] || [],
+    const mealsByMenuCategory = meals.reduce((acc, meal) => {
+      const rawKey = meal.menu_category || t('menu');
+      const normalizedKey = normalizeCategoryKey(rawKey);
+      if (!acc[normalizedKey]) {
+        acc[normalizedKey] = {
+          label: rawKey,
+          meals: [],
         };
+      }
+      acc[normalizedKey].meals.push(meal);
+      return acc;
+    }, {});
+
+    const sections = [];
+    const usedMealKeys = new Set();
+
+    topLevelCategories
+      .slice()
+      .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER))
+      .forEach((category) => {
+        const children = (categoryChildrenByParentId[category.id] || [])
+          .slice()
+          .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER));
+
+        const childGroups = children
+          .map((child) => {
+            const childKey = normalizeCategoryKey(child.name || child.name_en);
+            const match = mealsByMenuCategory[childKey];
+            if (!match) return null;
+            usedMealKeys.add(childKey);
+            return {
+              key: childKey,
+              label: getLocalizedField(child, 'name'),
+              meals: match.meals,
+            };
+          })
+          .filter(Boolean);
+
+        const parentKey = normalizeCategoryKey(category.name || category.name_en);
+        const parentMatch = mealsByMenuCategory[parentKey];
+        if (parentMatch) {
+          usedMealKeys.add(parentKey);
+        }
+
+        const allMeals = [
+          ...(parentMatch?.meals || []),
+          ...childGroups.flatMap((group) => group.meals),
+        ];
+
+        if (allMeals.length === 0) return;
+
+        sections.push({
+          key: category.id,
+          label: getLocalizedField(category, 'name'),
+          groups: childGroups.length > 0
+            ? childGroups
+            : [
+                {
+                  key: parentKey,
+                  label: getLocalizedField(category, 'name'),
+                  meals: allMeals,
+                },
+              ],
+          meals: allMeals,
+        });
       });
-  }, [groupedMeals, categoryMetaByName, getLocalizedField]);
+
+    Object.entries(mealsByMenuCategory)
+      .filter(([key]) => !usedMealKeys.has(key))
+      .sort((left, right) => {
+        const leftOrder = categoryMetaByName[left[0]]?.sort_order ?? Number.MAX_SAFE_INTEGER;
+        const rightOrder = categoryMetaByName[right[0]]?.sort_order ?? Number.MAX_SAFE_INTEGER;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return left[1].label.localeCompare(right[1].label);
+      })
+      .forEach(([key, value]) => {
+        sections.push({
+          key,
+          label: categoryMetaByName[key] ? getLocalizedField(categoryMetaByName[key], 'name') : value.label,
+          groups: [
+            {
+              key,
+              label: categoryMetaByName[key] ? getLocalizedField(categoryMetaByName[key], 'name') : value.label,
+              meals: value.meals,
+            },
+          ],
+          meals: value.meals,
+        });
+      });
+
+    return sections;
+  }, [meals, t, topLevelCategories, categoryChildrenByParentId, getLocalizedField, categoryMetaByName]);
 
   useEffect(() => {
     if (!selectedCategoryKey || categorySections.some((section) => section.key === selectedCategoryKey)) return;
@@ -333,7 +415,7 @@ export default function RestaurantDetail() {
           </>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
-            <div className="sticky top-14 z-20 space-y-3 border-b border-border/50 bg-card/95 px-4 py-4 backdrop-blur md:top-16 md:px-5">
+            <div className="sticky top-14 z-20 space-y-2 border-b border-border/50 bg-card/95 px-4 py-3 backdrop-blur md:top-16 md:px-5">
               <button
                 onClick={() => setSelectedCategoryKey(null)}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
@@ -348,16 +430,30 @@ export default function RestaurantDetail() {
               </div>
             </div>
 
-            <div className="max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto p-4 md:max-h-[calc(100vh-16rem)] md:p-5">
-              {selectedSection.meals.map((meal, index) => (
-                <MealCard
-                  key={meal.id}
-                  meal={meal}
-                  index={index}
-                  onClick={() => openSheet(selectedSection.meals, index)}
-                  fallbackImage={logoUrl}
-                />
-              ))}
+            <div className="max-h-[calc(100vh-15rem)] overflow-y-auto px-4 pb-4 pt-3 md:max-h-[calc(100vh-13rem)] md:px-5 md:pb-5 md:pt-4">
+              <div className="space-y-5">
+                {selectedSection.groups.map((group) => (
+                  <section key={group.key} className="space-y-3">
+                    {selectedSection.groups.length > 1 ? (
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-foreground">{group.label}</h3>
+                        <p className="text-xs text-muted-foreground">{group.meals.length} items</p>
+                      </div>
+                    ) : null}
+                    <div className="space-y-3">
+                      {group.meals.map((meal, index) => (
+                        <MealCard
+                          key={meal.id}
+                          meal={meal}
+                          index={index}
+                          onClick={() => openSheet(group.meals, index)}
+                          fallbackImage={logoUrl}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             </div>
           </div>
         )}

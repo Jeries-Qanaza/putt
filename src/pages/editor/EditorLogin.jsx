@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UtensilsCrossed } from 'lucide-react';
+import { Eye, EyeOff, Loader2, UtensilsCrossed } from 'lucide-react';
 
 export default function EditorLogin({ restaurant, onSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +31,7 @@ export default function EditorLogin({ restaurant, onSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
       <Card className="w-full max-w-sm border-0 shadow-lg">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto h-12 w-12 rounded-2xl bg-primary flex items-center justify-center">
@@ -57,14 +58,25 @@ export default function EditorLogin({ restaurant, onSuccess }) {
             </div>
             <div>
               <Label htmlFor="editor-pass">Password</Label>
-              <Input
-                id="editor-pass"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="editor-pass"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="pe-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute inset-y-0 end-0 flex w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>

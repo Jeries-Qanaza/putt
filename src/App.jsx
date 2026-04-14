@@ -47,11 +47,12 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      <Route path="/:slug/editor" element={<RestaurantEditor />} />
+
       {/* Customer routes */}
       <Route element={<CustomerLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/:slug" element={<RestaurantDetail />} />
-        <Route path="/:slug/editor" element={<RestaurantEditor />} />
       </Route>
 
       {/* Admin routes */}

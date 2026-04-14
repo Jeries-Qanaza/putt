@@ -39,6 +39,17 @@ export default function RestaurantEditor() {
   const [infoForm, setInfoForm] = useState(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    const shouldLockScroll = showMealForm || showEventForm || !!deletingMealId || !!deletingEventId;
+    const previousOverflow = document.body.style.overflow;
+    if (shouldLockScroll) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showMealForm, showEventForm, deletingMealId, deletingEventId]);
+
   const { data: restaurant, isLoading } = useQuery({
     queryKey: ['editor-restaurant', slug],
     queryFn: async () => {
@@ -127,7 +138,7 @@ export default function RestaurantEditor() {
   const name = getLocalizedField(restaurant, 'name');
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-hidden bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -148,7 +159,7 @@ export default function RestaurantEditor() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="mx-auto h-[calc(100vh-3.5rem)] max-w-4xl overflow-y-auto px-4 py-6">
         <Tabs defaultValue="meals">
           <TabsList className="w-full justify-start bg-muted/50 mb-6">
             <TabsTrigger value="meals" className="flex-1 md:flex-none">{t('menu')}</TabsTrigger>
