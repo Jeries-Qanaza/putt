@@ -49,7 +49,7 @@ export default function RestaurantForm({ restaurant, onClose }) {
     manager_email: restaurant?.manager_email || '',
     logo_url: restaurant?.logo_url || '',
     cover_image: restaurant?.cover_image || '',
-    editor_username: restaurant?.editor_username || '',
+    editor_email: restaurant?.editor_email || restaurant?.editor_username || '',
     editor_password: restaurant?.editor_password || '',
     is_active: restaurant?.is_active !== false,
   });
@@ -134,7 +134,7 @@ export default function RestaurantForm({ restaurant, onClose }) {
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div><Label>Editor Username</Label><Input value={form.editor_username} onChange={(event) => handleChange('editor_username', event.target.value)} maxLength={50} placeholder="username" /></div>
+            <div><Label>Editor Email</Label><Input value={form.editor_email} onChange={(event) => handleChange('editor_email', event.target.value)} type="email" maxLength={120} placeholder="editor@restaurant.com" /></div>
             <div><Label>Editor Password</Label><Input value={form.editor_password} onChange={(event) => handleChange('editor_password', event.target.value)} maxLength={50} placeholder="password" /></div>
           </div>
 

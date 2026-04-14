@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { useToast } from '@/components/ui/use-toast';
+import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
 
 export default function RestaurantEditor() {
   const { slug } = useParams();
@@ -61,8 +62,34 @@ export default function RestaurantEditor() {
     },
   });
 
+  useEffect(() => {
+    if (!restaurant) return undefined;
+    if (!isSupabaseConfigured) return undefined;
+
+    const expectedEmail = (restaurant.editor_email || restaurant.editor_username || '').trim().toLowerCase();
+
+    const syncAuthState = async () => {
+      const { data } = await supabase.auth.getSession();
+      const sessionEmail = (data.session?.user?.email || '').trim().toLowerCase();
+      setAuthenticated(Boolean(expectedEmail && sessionEmail === expectedEmail));
+    };
+
+    syncAuthState();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionEmail = (session?.user?.email || '').trim().toLowerCase();
+      setAuthenticated(Boolean(expectedEmail && sessionEmail === expectedEmail));
+    });
+
+    return () => subscription.unsubscribe();
+  }, [restaurant]);
+
   // Check session auth
-  const isAuthed = authenticated || (restaurant && sessionStorage.getItem(`editor_auth_${restaurant.id}`) === 'true');
+  const isAuthed =
+    authenticated ||
+    (!isSupabaseConfigured && restaurant && sessionStorage.getItem(`editor_auth_${restaurant.id}`) === 'true');
   const restaurantLogo = restaurant?.logo_url || restaurant?.cover_image;
 
   // Init info form when restaurant loads
@@ -111,6 +138,9 @@ export default function RestaurantEditor() {
 
   const handleLogout = () => {
     if (restaurant) sessionStorage.removeItem(`editor_auth_${restaurant.id}`);
+    if (isSupabaseConfigured) {
+      supabase.auth.signOut();
+    }
     setAuthenticated(false);
     queryClient.clear();
   };
@@ -167,7 +197,7 @@ export default function RestaurantEditor() {
               {t('events')} {events.length > 0 && `(${events.length})`}
             </TabsTrigger>
             <TabsTrigger value="info" className="flex-1 md:flex-none">
-              <Settings className="h-4 w-4 me-1" /> Info
+              <Settings className="h-4 w-4 me-1" /> {t('info')}
             </TabsTrigger>
           </TabsList>
 
@@ -283,7 +313,7 @@ export default function RestaurantEditor() {
           <TabsContent value="info">
             {infoForm && (
               <div className="space-y-5 max-w-2xl">
-                <h2 className="text-lg font-bold">Restaurant Info</h2>
+                <h2 className="text-lg font-bold">{t('restaurantInfo')}</h2>
                 <div>
                   <Label>Cover Image</Label>
                   <ImageUpload value={infoForm.cover_image} onChange={(v) => setInfoForm({ ...infoForm, cover_image: v })} />

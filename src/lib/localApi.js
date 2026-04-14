@@ -40,7 +40,8 @@ const seedData = {
       manager_email: 'maya@putt.local',
       manager_name: 'Maya Levi',
       manager_phone: '+972-54-555-0101',
-      editor_username: 'putt',
+      editor_email: 'putt@putt.local',
+      editor_username: 'putt@putt.local',
       editor_password: 'putt123',
       is_active: true,
     },
@@ -64,7 +65,8 @@ const seedData = {
       manager_email: 'omar@putt.local',
       manager_name: 'Omar Nassar',
       manager_phone: '+972-52-555-0202',
-      editor_username: 'harbor',
+      editor_email: 'harbor@putt.local',
+      editor_username: 'harbor@putt.local',
       editor_password: 'harbor123',
       is_active: true,
     },
@@ -345,7 +347,6 @@ const serializeRestaurantPayload = (payload) => ({
   description_en: payload.description ?? payload.description_en ?? '',
   description_he: payload.description_he ?? '',
   editor_password: payload.editor_password ?? '',
-  editor_username: payload.editor_username ?? '',
   is_active: payload.is_active ?? true,
   latitude: payload.latitude ?? null,
   logo_url: payload.logo_url ?? '',
@@ -353,11 +354,13 @@ const serializeRestaurantPayload = (payload) => ({
   manager_email: payload.manager_email ?? '',
   manager_name: payload.manager_name ?? '',
   manager_phone: payload.manager_phone ?? '',
+  editor_email: payload.editor_email ?? payload.editor_username ?? '',
   name_ar: payload.name_ar ?? '',
   name_en: payload.name ?? payload.name_en ?? '',
   name_he: payload.name_he ?? '',
   phone: payload.phone ?? '',
   schedule: payload.schedule ?? null,
+  editor_username: payload.editor_email ?? payload.editor_username ?? '',
 });
 
 const serializeMealPayload = (payload) => ({
@@ -403,6 +406,7 @@ const normalizeRestaurant = (row) => ({
   description_he: row.description_he ?? '',
   description_ar: row.description_ar ?? '',
   logo_url: row.logo_url ?? '',
+  editor_email: row.editor_email ?? row.editor_username ?? '',
   schedule: normalizeSchedule(row.schedule),
 });
 

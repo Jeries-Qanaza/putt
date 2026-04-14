@@ -304,6 +304,17 @@ export default function RestaurantDetail() {
   const selectedSection = categorySections.find((section) => section.key === selectedCategoryKey);
   const openState = useMemo(() => getRestaurantOpenState(restaurant?.schedule), [restaurant?.schedule]);
 
+  useEffect(() => {
+    if (!selectedSection) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [selectedSection]);
+
   const openSheet = (mealsList, index) => {
     setSheetMeals(mealsList);
     setSheetIndex(index);
@@ -376,7 +387,7 @@ export default function RestaurantDetail() {
                 className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Info className="h-4 w-4" />
-                Info
+                {t('info')}
               </button>
             ) : null}
           </div>
@@ -395,7 +406,7 @@ export default function RestaurantDetail() {
                 className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Info className="h-4 w-4" />
-                Info
+                {t('info')}
               </button>
             ) : null}
           </div>
@@ -423,7 +434,7 @@ export default function RestaurantDetail() {
                   {openState.isClosed ? (
                     <>
                       <XCircle className="h-4 w-4 shrink-0" />
-                      Closed now
+                      {t('closedNow')}
                       {openState.todaySchedule.open && openState.todaySchedule.close
                         ? ` · ${openState.todaySchedule.open} - ${openState.todaySchedule.close}`
                         : ''}
@@ -431,7 +442,7 @@ export default function RestaurantDetail() {
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4 shrink-0" />
-                      Open today: {openState.todaySchedule.open} - {openState.todaySchedule.close}
+                      {t('openToday')}: {openState.todaySchedule.open} - {openState.todaySchedule.close}
                     </>
                   )}
                 </div>
@@ -474,7 +485,7 @@ export default function RestaurantDetail() {
           <>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-foreground">{t('categories')}</h2>
-              {!categoriesLoading ? <span className="text-sm text-muted-foreground">{categorySections.length} sections</span> : null}
+              {!categoriesLoading ? <span className="text-sm text-muted-foreground">{categorySections.length} {t('sections')}</span> : null}
             </div>
 
             {categoriesLoading ? (
@@ -497,7 +508,7 @@ export default function RestaurantDetail() {
             )}
           </>
         ) : (
-          <div className="flex max-h-[calc(100vh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm md:max-h-[calc(100vh-6.5rem)]">
+          <div className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm md:h-[calc(100vh-6.5rem)]">
             <div className="sticky top-0 z-20 space-y-2 border-b border-border/50 bg-card/95 px-4 py-2 backdrop-blur md:px-5">
               <button
                 onClick={() => setSelectedCategoryKey(null)}
@@ -509,7 +520,7 @@ export default function RestaurantDetail() {
 
               <div>
                 <h2 className="text-2xl font-bold text-foreground">{selectedSection.label}</h2>
-                <p className="text-sm text-muted-foreground">{selectedSection.meals.length} items</p>
+                <p className="text-sm text-muted-foreground">{selectedSection.meals.length} {t('items')}</p>
               </div>
             </div>
 
@@ -520,7 +531,7 @@ export default function RestaurantDetail() {
                     {selectedSection.groups.length > 1 ? (
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-foreground">{group.label}</h3>
-                        <p className="text-xs text-muted-foreground">{group.meals.length} items</p>
+                        <p className="text-xs text-muted-foreground">{group.meals.length} {t('items')}</p>
                       </div>
                     ) : null}
 

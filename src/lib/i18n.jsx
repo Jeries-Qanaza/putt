@@ -1,16 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const translations = {
   en: {
     dir: 'ltr',
-    // Navigation
     home: 'Home',
     admin: 'Admin',
     manager: 'Manager',
     restaurants: 'Restaurants',
     menu: 'Menu',
     events: 'Events',
-    // Common
     search: 'Search',
     searchRestaurants: 'Search restaurants...',
     filter: 'Filter',
@@ -27,7 +25,6 @@ const translations = {
     edit: 'Edit',
     add: 'Add',
     back: 'Back',
-    // Restaurant
     addRestaurant: 'Add Restaurant',
     editRestaurant: 'Edit Restaurant',
     restaurantName: 'Restaurant Name',
@@ -40,7 +37,6 @@ const translations = {
     coverImage: 'Cover Image',
     active: 'Active',
     inactive: 'Inactive',
-    // Meals
     addMeal: 'Add Meal',
     editMeal: 'Edit Meal',
     mealName: 'Meal Name',
@@ -50,7 +46,6 @@ const translations = {
     dietaryTags: 'Dietary Tags',
     available: 'Available',
     unavailable: 'Unavailable',
-    // Dietary
     vegan: 'Vegan',
     vegetarian: 'Vegetarian',
     pescetarian: 'Pescetarian',
@@ -58,19 +53,16 @@ const translations = {
     keto: 'Keto',
     halal: 'Halal',
     spicy: 'Spicy',
-    // Events
     addEvent: 'Add Event',
     editEvent: 'Edit Event',
     eventTitle: 'Event Title',
     date: 'Date',
     time: 'Time',
-    // Customer
     viewMenu: 'View Menu',
     viewEvents: 'Events',
     noMeals: 'No meals available',
     noEvents: 'No upcoming events',
     currency: '₪',
-    // Roles
     adminDashboard: 'Admin Dashboard',
     managerDashboard: 'Manager Dashboard',
     totalRestaurants: 'Total Restaurants',
@@ -87,6 +79,20 @@ const translations = {
     news: 'News & Offers',
     openingDays: 'Opening Days',
     items: 'items',
+    sections: 'sections',
+    info: 'Info',
+    openToday: 'Open today',
+    closedNow: 'Closed now',
+    editorAccess: 'Editor Access',
+    signIn: 'Sign In',
+    locked: 'Locked',
+    invalidEmailOrPassword: 'Invalid email or password.',
+    attemptsLeft: 'attempts left',
+    supportLockMessage: 'This device is blocked for 2 hours. Contact Putt support.',
+    restaurantInfo: 'Restaurant Info',
+    mealLabel: 'Meal',
+    previous: 'Previous',
+    next: 'Next',
   },
   he: {
     dir: 'rtl',
@@ -152,9 +158,9 @@ const translations = {
     currency: '₪',
     adminDashboard: 'לוח ניהול ראשי',
     managerDashboard: 'לוח ניהול מסעדה',
-    totalRestaurants: 'סה״כ מסעדות',
-    totalMeals: 'סה״כ מנות',
-    totalEvents: 'סה״כ אירועים',
+    totalRestaurants: 'סה"כ מסעדות',
+    totalMeals: 'סה"כ מנות',
+    totalEvents: 'סה"כ אירועים',
     manageCategories: 'ניהול קטגוריות',
     categoryName: 'שם הקטגוריה',
     icon: 'אייקון',
@@ -165,7 +171,21 @@ const translations = {
     selectCategories: 'בחר קטגוריות',
     news: 'חדשות והצעות',
     openingDays: 'ימי פתיחה',
-    items: 'פרטים',
+    items: 'פריטים',
+    sections: 'סקציות',
+    info: 'מידע',
+    openToday: 'פתוח היום',
+    closedNow: 'סגור עכשיו',
+    editorAccess: 'גישת עורך',
+    signIn: 'התחבר',
+    locked: 'נעול',
+    invalidEmailOrPassword: 'אימייל או סיסמה שגויים.',
+    attemptsLeft: 'ניסיונות נותרו',
+    supportLockMessage: 'המכשיר הזה חסום לשעתיים. צרו קשר עם תמיכת Putt.',
+    restaurantInfo: 'פרטי המסעדה',
+    mealLabel: 'מנה',
+    previous: 'הקודם',
+    next: 'הבא',
   },
   ar: {
     dir: 'rtl',
@@ -245,7 +265,21 @@ const translations = {
     news: 'الأخبار والعروض',
     openingDays: 'أيام الفتح',
     items: 'عناصر',
-  }
+    sections: 'أقسام',
+    info: 'معلومات',
+    openToday: 'مفتوح اليوم',
+    closedNow: 'مغلق الآن',
+    editorAccess: 'دخول المحرر',
+    signIn: 'تسجيل الدخول',
+    locked: 'مقفل',
+    invalidEmailOrPassword: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+    attemptsLeft: 'محاولات متبقية',
+    supportLockMessage: 'هذا الجهاز محظور لمدة ساعتين. تواصل مع دعم Putt.',
+    restaurantInfo: 'معلومات المطعم',
+    mealLabel: 'وجبة',
+    previous: 'السابق',
+    next: 'التالي',
+  },
 };
 
 const I18nContext = createContext();

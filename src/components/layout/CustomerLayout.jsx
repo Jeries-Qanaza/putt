@@ -69,10 +69,6 @@ export default function CustomerLayout() {
           <Outlet />
         </motion.div>
       </main>
-      <footer className="max-w-7xl mx-auto px-4 pb-8">
-        <div className="mx-auto mb-3 h-px w-full max-w-xs bg-border" />
-        <p className="text-center text-sm text-muted-foreground">Made with love by: Putt</p>
-      </footer>
     </div>
   );
 }

@@ -1,13 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import DietaryBadges from '@/components/shared/DietaryBadges';
 
+function preloadImage(src) {
+  if (!src) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = resolve;
+    image.onerror = resolve;
+    image.src = src;
+  });
+}
+
 export default function MealDetailSheet({ meals, initialIndex, onClose, fallbackImage }) {
   const { t, getLocalizedField } = useI18n();
   const [index, setIndex] = useState(initialIndex ?? 0);
   const [direction, setDirection] = useState(0);
+  const contentRef = useRef(null);
+  const touchStartYRef = useRef(null);
 
   const sheetY = useMotionValue(0);
   const sheetOpacity = useTransform(sheetY, [0, 200], [1, 0]);
@@ -17,10 +30,23 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
   const desc = getLocalizedField(meal, 'description');
   const primaryImage = meal.image_url || fallbackImage || '';
   const [currentImage, setCurrentImage] = useState(primaryImage);
+  const imageSources = useMemo(
+    () => meals.map((item) => item.image_url || fallbackImage || ''),
+    [meals, fallbackImage]
+  );
 
   useEffect(() => {
     setCurrentImage(primaryImage);
   }, [primaryImage, index]);
+
+  useEffect(() => {
+    const preloadTargets = [imageSources[index], imageSources[index - 1], imageSources[index + 1]]
+      .filter(Boolean);
+
+    preloadTargets.forEach((src) => {
+      preloadImage(src);
+    });
+  }, [imageSources, index]);
 
   const goNext = () => {
     if (index < meals.length - 1) {
@@ -53,6 +79,49 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
     exit: (dir) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
   };
 
+  const forwardScrollToPage = (deltaY) => {
+    if (!deltaY) return false;
+    window.scrollBy({ top: deltaY, behavior: 'auto' });
+    return true;
+  };
+
+  const handleWheel = (event) => {
+    const container = contentRef.current;
+    if (!container) return;
+
+    const scrollingDown = event.deltaY > 0;
+    const scrollingUp = event.deltaY < 0;
+    const atTop = container.scrollTop <= 0;
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 1;
+
+    if ((scrollingUp && atTop) || (scrollingDown && atBottom)) {
+      event.preventDefault();
+      forwardScrollToPage(event.deltaY);
+    }
+  };
+
+  const handleTouchStart = (event) => {
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchMove = (event) => {
+    const container = contentRef.current;
+    const currentY = event.touches[0]?.clientY;
+
+    if (!container || currentY == null || touchStartYRef.current == null) return;
+
+    const deltaY = touchStartYRef.current - currentY;
+    const draggingDown = deltaY < 0;
+    const draggingUp = deltaY > 0;
+    const atTop = container.scrollTop <= 0;
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 1;
+
+    if ((draggingDown && atTop) || (draggingUp && atBottom)) {
+      forwardScrollToPage(deltaY);
+      touchStartYRef.current = currentY;
+    }
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -71,10 +140,10 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:left-1/2 md:right-auto md:top-[50dvh] md:bottom-auto md:w-[40vw] md:min-w-[36rem] md:max-w-3xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl"
+        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:left-1/2 md:right-auto md:top-1/2 md:bottom-auto md:w-[min(92vw,32rem)] md:max-h-[88vh] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[2rem]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:aspect-[16/8]">
+        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:aspect-[4/3]">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={`img-${index}`}
@@ -129,14 +198,12 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
             <X className="h-4 w-4" />
           </button>
 
-          {meals.length > 1 ? (
-            <div className="absolute top-3 left-3 z-20 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white">
-              {index + 1} / {meals.length}
-            </div>
-          ) : null}
+          <div className="absolute top-3 left-3 z-20 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white">
+            {index + 1} / {meals.length}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-card">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={index}
@@ -153,17 +220,28 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
                 if (info.offset.x < -80) goNext();
                 else if (info.offset.x > 80) goPrev();
               }}
-              className="max-h-[42vh] select-none space-y-3 overflow-y-auto p-5 md:max-h-[48vh]"
+              ref={contentRef}
+              onWheel={handleWheel}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              className="max-h-[42vh] select-none overflow-y-auto p-5 md:max-h-[calc(88vh-19rem)]"
             >
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-xl font-bold leading-tight text-foreground">{name}</h2>
-                <span className="shrink-0 text-2xl font-bold text-primary">
-                  {t('currency')}
-                  {meal.price}
-                </span>
+              <div className="rounded-[1.5rem] border border-border/60 bg-background/80 p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t('mealLabel')}</div>
+                    <h2 className="text-xl font-bold leading-tight text-foreground">{name}</h2>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-lg font-bold text-primary">
+                    {t('currency')}
+                    {meal.price}
+                  </span>
+                </div>
+                {desc ? <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{desc}</p> : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <DietaryBadges tags={meal.dietary_tags} size="md" />
+                </div>
               </div>
-              {desc ? <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p> : null}
-              <DietaryBadges tags={meal.dietary_tags} size="md" />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -176,14 +254,14 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-30"
             >
               <ChevronLeft className="h-4 w-4" />
-              Prev
+              {t('previous')}
             </button>
             <button
               onClick={goNext}
               disabled={index === meals.length - 1}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-30"
             >
-              Next
+              {t('next')}
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

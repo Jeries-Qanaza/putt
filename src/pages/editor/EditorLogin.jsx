@@ -4,6 +4,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Loader2, UtensilsCrossed } from 'lucide-react';
+import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
+import { useI18n } from '@/lib/i18n';
 
 const LOCKOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -18,18 +20,20 @@ function readLockUntil(storageKey) {
 }
 
 export default function EditorLogin({ restaurant, onSuccess }) {
+  const { t } = useI18n();
   const attemptStorageKey = `editor_attempts_${restaurant.id}`;
   const lockedStorageKey = `editor_locked_until_${restaurant.id}`;
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [lockedUntil, setLockedUntil] = useState(() => readLockUntil(lockedStorageKey));
   const [error, setError] = useState(() =>
-    readLockUntil(lockedStorageKey) ? '⚠️ This device is blocked for 2 hours. Contact Putt support.' : ''
+    readLockUntil(lockedStorageKey) ? t('supportLockMessage') : ''
   );
   const [loading, setLoading] = useState(false);
 
   const isLocked = lockedUntil > Date.now();
+  const editorEmail = restaurant.editor_email || restaurant.editor_username || '';
 
   useEffect(() => {
     if (!isLocked) return undefined;
@@ -42,7 +46,7 @@ export default function EditorLogin({ restaurant, onSuccess }) {
       }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [isLocked, lockedStorageKey, attemptStorageKey]);
+  }, [attemptStorageKey, isLocked, lockedStorageKey]);
 
   const remainingLabel = useMemo(() => {
     if (!isLocked) return '';
@@ -54,19 +58,41 @@ export default function EditorLogin({ restaurant, onSuccess }) {
     return `${minutes}m`;
   }, [isLocked, lockedUntil]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (event) => {
+    event.preventDefault();
 
     if (isLocked) {
-      setError('⚠️ This device is blocked for 2 hours. Contact Putt support.');
+      setError(t('supportLockMessage'));
       return;
     }
 
     setLoading(true);
     setError('');
 
-    window.setTimeout(() => {
-      if (username === restaurant.editor_username && password === restaurant.editor_password) {
+    window.setTimeout(async () => {
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedStoredEmail = editorEmail.trim().toLowerCase();
+      let isValid = false;
+
+      if (isSupabaseConfigured && normalizedStoredEmail) {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+
+        isValid =
+          !signInError &&
+          !!data.session &&
+          (data.user?.email || '').trim().toLowerCase() === normalizedStoredEmail;
+
+        if (!isValid && data.session) {
+          await supabase.auth.signOut();
+        }
+      } else {
+        isValid = normalizedEmail === normalizedStoredEmail && password === restaurant.editor_password;
+      }
+
+      if (isValid) {
         localStorage.removeItem(attemptStorageKey);
         localStorage.removeItem(lockedStorageKey);
         setLockedUntil(0);
@@ -76,13 +102,13 @@ export default function EditorLogin({ restaurant, onSuccess }) {
         const nextAttempts = Number(localStorage.getItem(attemptStorageKey) || '0') + 1;
         localStorage.setItem(attemptStorageKey, String(nextAttempts));
 
-        if (nextAttempts === 4) {
+        if (nextAttempts >= 4) {
           const nextLockedUntil = Date.now() + LOCKOUT_MS;
           localStorage.setItem(lockedStorageKey, String(nextLockedUntil));
           setLockedUntil(nextLockedUntil);
-          setError('⚠️ This device is blocked for 2 hours. Contact Putt support.');
+          setError(t('supportLockMessage'));
         } else {
-          setError(`Invalid username or password. ${4 - nextAttempts} attempts left.`);
+          setError(`${t('invalidEmailOrPassword')} ${4 - nextAttempts} ${t('attemptsLeft')}.`);
         }
       }
 
@@ -102,18 +128,19 @@ export default function EditorLogin({ restaurant, onSuccess }) {
             )}
           </div>
           <CardTitle className="text-xl">{restaurant.name}</CardTitle>
-          <p className="text-sm text-muted-foreground">Editor Access</p>
+          <p className="text-sm text-muted-foreground">{t('editorAccess')}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="editor-user">Username</Label>
+              <Label htmlFor="editor-email">Email</Label>
               <Input
-                id="editor-user"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                maxLength={50}
+                id="editor-email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                type="email"
+                maxLength={120}
                 required
               />
             </div>
@@ -124,7 +151,7 @@ export default function EditorLogin({ restaurant, onSuccess }) {
                   id="editor-pass"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
                   className="pe-10"
                   maxLength={50}
@@ -143,7 +170,7 @@ export default function EditorLogin({ restaurant, onSuccess }) {
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" className="w-full" disabled={loading || isLocked}>
               {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}
-              {isLocked ? `Locked ${remainingLabel ? `(${remainingLabel})` : ''}` : 'Sign In'}
+              {isLocked ? `${t('locked')} ${remainingLabel ? `(${remainingLabel})` : ''}` : t('signIn')}
             </Button>
           </form>
         </CardContent>
