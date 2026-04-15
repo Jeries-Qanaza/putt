@@ -30,7 +30,10 @@ export default function Home() {
 
   const { data: restaurants = [], isLoading: loadingRestaurants } = useQuery({
     queryKey: ['restaurants'],
-    queryFn: () => localApi.entities.Restaurant.filter({ is_active: true }),
+    queryFn: async () => {
+      const results = await localApi.entities.Restaurant.list('name');
+      return results.filter((restaurant) => restaurant.is_active !== false);
+    },
   });
 
   const { data: categories = [] } = useQuery({

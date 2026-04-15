@@ -10,6 +10,7 @@ import MealCard from '@/components/customer/MealCard';
 import MealDetailSheet from '@/components/customer/MealDetailSheet';
 import MenuCategoryGrid, { getCategoryPhoto } from '@/components/customer/MenuCategoryGrid';
 import { toSlug } from '@/lib/slugify';
+import PageNotFound from '@/lib/PageNotFound';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -330,11 +331,7 @@ export default function RestaurantDetail() {
   }
 
   if (!restaurant) {
-    return (
-      <div className="py-20 text-center text-muted-foreground" role="alert">
-        <p>{t('noResults')}</p>
-      </div>
-    );
+    return <PageNotFound />;
   }
 
   const categoriesLoading = loadingCategories || loadingMeals || (showWelcome && !categoryAssetsReady);
