@@ -224,20 +224,20 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
               onWheel={handleWheel}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
-              className="max-h-[42vh] select-none overflow-y-auto p-5 md:max-h-[calc(88vh-19rem)]"
+              className="max-h-[42vh] select-none overflow-y-auto p-5 md:max-h-[calc(88vh-19rem)] md:px-6 md:py-5"
             >
-              <div className="rounded-[1.5rem] border border-border/60 bg-background/80 p-5 shadow-sm">
+              <div className="rounded-[1.5rem] border border-border/60 bg-background/80 p-5 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t('mealLabel')}</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:hidden">{t('mealLabel')}</div>
                     <h2 className="text-xl font-bold leading-tight text-foreground">{name}</h2>
                   </div>
-                  <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-lg font-bold text-primary">
+                  <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-lg font-bold text-primary md:bg-transparent md:px-0 md:py-0 md:text-2xl">
                     {t('currency')}
                     {meal.price}
                   </span>
                 </div>
-                {desc ? <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{desc}</p> : null}
+                {desc ? <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">{desc}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <DietaryBadges tags={meal.dietary_tags} size="md" />
                 </div>
