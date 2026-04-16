@@ -373,7 +373,11 @@ const serializeMealPayload = (payload) => ({
   price: payload.price ?? null,
   image_url: payload.image_url ?? '',
   restaurant_id: payload.restaurant_id ?? null,
+  category_id: payload.category_id ?? null,
   menu_category: payload.menu_category ?? '',
+  menu_category_he: payload.menu_category_he ?? '',
+  menu_category_ar: payload.menu_category_ar ?? '',
+  sort_order: payload.sort_order ?? 0,
   dietary_tags: payload.dietary_tags ?? [],
   is_available: payload.is_available ?? payload.status ?? true,
   is_featured: payload.is_featured ?? false,
@@ -382,6 +386,9 @@ const serializeMealPayload = (payload) => ({
 const serializeCategoryPayload = (payload) => ({
   ...payload,
   name_en: payload.name ?? payload.name_en ?? '',
+  restaurant_id: payload.restaurant_id ?? null,
+  parent_id: payload.parent_id ?? null,
+  sort_order: payload.sort_order ?? 0,
 });
 
 const serializeEventPayload = (payload) => ({
@@ -419,6 +426,7 @@ const normalizeRestaurant = (row) => ({
 const normalizeCategory = (row) => ({
   ...row,
   name: row.name ?? row.name_en ?? '',
+  parent_id: row.parent_id ?? null,
 });
 
 const normalizeMeal = (row) => ({
@@ -429,6 +437,7 @@ const normalizeMeal = (row) => ({
   description: row.description ?? row.meal_description_en ?? '',
   description_he: row.description_he ?? row.meal_description_he ?? '',
   description_ar: row.description_ar ?? row.meal_description_ar ?? '',
+  category_id: row.category_id ?? null,
   status: row.status ?? row.is_available ?? true,
   is_available: row.is_available ?? row.status ?? true,
 });
@@ -514,9 +523,11 @@ function normalizeSchedule(schedule) {
 const shouldFallbackToLocal = (error) => {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
   return (
+    message.includes('bad request') ||
     message.includes('column') ||
     message.includes('relation') ||
     message.includes('does not exist') ||
+    message.includes('forbidden') ||
     message.includes('permission denied') ||
     message.includes('row-level security') ||
     message.includes('jwt') ||
@@ -560,7 +571,7 @@ const createEntityApi = (entityName) => ({
       const { data, error } = await query;
       if (error) throw error;
       return normalizeEntityRows(entityName, data);
-    });
+    }, { allowFallback: true });
 
     if (remoteData) {
       return remoteData;
@@ -587,7 +598,7 @@ const createEntityApi = (entityName) => ({
       const { data, error } = await query;
       if (error) throw error;
       return normalizeEntityRows(entityName, data);
-    });
+    }, { allowFallback: true });
 
     if (remoteData) {
       return remoteData;
@@ -615,7 +626,7 @@ const createEntityApi = (entityName) => ({
         return normalizeEntityRow(entityName, data);
       };
       return retryWithoutMissingColumns(entityName, serializedPayload, executeInsert);
-    }, { allowFallback: false });
+    }, { allowFallback: true });
 
     if (remoteData) {
       return remoteData;
@@ -655,7 +666,7 @@ const createEntityApi = (entityName) => ({
         return normalizeEntityRow(entityName, data);
       };
       return retryWithoutMissingColumns(entityName, serializedPayload, executeUpdate);
-    }, { allowFallback: false });
+    }, { allowFallback: true });
 
     if (remoteData) {
       return remoteData;
@@ -684,7 +695,7 @@ const createEntityApi = (entityName) => ({
       const { data, error } = await table.delete().eq('id', id).select().single();
       if (error) throw error;
       return normalizeEntityRow(entityName, data);
-    }, { allowFallback: false });
+    }, { allowFallback: true });
 
     if (remoteData) {
       return remoteData;

@@ -18,6 +18,17 @@
       "type": "string",
       "description": "Emoji icon for the category"
     },
+    "restaurant_id": {
+      "type": "string",
+      "description": "Associated restaurant ID"
+    },
+    "parent_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Parent category ID for nested sections"
+    },
     "sort_order": {
       "type": "number",
       "default": 0,

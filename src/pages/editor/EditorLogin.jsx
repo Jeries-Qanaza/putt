@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Loader2, UtensilsCrossed } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
 import { useI18n } from '@/lib/i18n';
+import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 
 const LOCKOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -118,6 +119,9 @@ export default function EditorLogin({ restaurant, onSuccess }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div className="fixed end-4 top-4 z-10">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-sm border-0 shadow-lg">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary">

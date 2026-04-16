@@ -38,6 +38,10 @@
       "type": "string",
       "description": "Associated restaurant ID"
     },
+    "category_id": {
+      "type": "string",
+      "description": "Associated category ID"
+    },
     "menu_category": {
       "type": "string",
       "description": "Menu section in English e.g. Hot Drinks, Salads, Mains"
