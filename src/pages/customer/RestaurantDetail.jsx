@@ -208,14 +208,18 @@ export default function RestaurantDetail() {
     const mealsByMenuCategory = meals.reduce((acc, meal) => {
       const category = meal.category_id ? categoryMetaById[meal.category_id] : null;
       const rawKey = category?.name || meal.menu_category || t('menu');
-      const normalizedKey = category?.id || normalizeCategoryKey(rawKey);
-      if (!acc[normalizedKey]) {
-        acc[normalizedKey] = {
-          label: category ? getLocalizedField(category, 'name') : rawKey,
-          meals: [],
-        };
-      }
-      acc[normalizedKey].meals.push(meal);
+      const keys = [category?.id, normalizeCategoryKey(rawKey)].filter(Boolean);
+
+      keys.forEach((key) => {
+        if (!acc[key]) {
+          acc[key] = {
+            label: category ? getLocalizedField(category, 'name') : rawKey,
+            meals: [],
+          };
+        }
+        acc[key].meals.push(meal);
+      });
+
       return acc;
     }, {});
 
@@ -233,9 +237,11 @@ export default function RestaurantDetail() {
         const childGroups = children
           .map((child) => {
             const childKey = child.id || normalizeCategoryKey(child.name || child.name_en);
-            const match = mealsByMenuCategory[childKey];
+            const childNameKey = normalizeCategoryKey(child.name || child.name_en);
+            const match = mealsByMenuCategory[childKey] || mealsByMenuCategory[childNameKey];
             if (!match) return null;
             usedMealKeys.add(childKey);
+            usedMealKeys.add(childNameKey);
             return {
               key: childKey,
               label: getLocalizedField(child, 'name'),
@@ -245,8 +251,12 @@ export default function RestaurantDetail() {
           .filter(Boolean);
 
         const parentKey = category.id || normalizeCategoryKey(category.name || category.name_en);
-        const parentMatch = mealsByMenuCategory[parentKey];
-        if (parentMatch) usedMealKeys.add(parentKey);
+        const parentNameKey = normalizeCategoryKey(category.name || category.name_en);
+        const parentMatch = mealsByMenuCategory[parentKey] || mealsByMenuCategory[parentNameKey];
+        if (parentMatch) {
+          usedMealKeys.add(parentKey);
+          usedMealKeys.add(parentNameKey);
+        }
 
         const allMeals = [
           ...(parentMatch?.meals || []),
