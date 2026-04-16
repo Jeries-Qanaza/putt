@@ -33,7 +33,7 @@ export default function EditorLogin({ restaurant, onSuccess }) {
   const [loading, setLoading] = useState(false);
 
   const isLocked = lockedUntil > Date.now();
-  const editorEmail = restaurant.editor_email || restaurant.editor_username || '';
+  const expectedEditorId = restaurant.editor_id || '';
 
   useEffect(() => {
     if (!isLocked) return undefined;
@@ -71,10 +71,9 @@ export default function EditorLogin({ restaurant, onSuccess }) {
 
     window.setTimeout(async () => {
       const normalizedEmail = email.trim().toLowerCase();
-      const normalizedStoredEmail = editorEmail.trim().toLowerCase();
       let isValid = false;
 
-      if (isSupabaseConfigured && normalizedStoredEmail) {
+      if (isSupabaseConfigured && expectedEditorId) {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
           password,
@@ -83,12 +82,13 @@ export default function EditorLogin({ restaurant, onSuccess }) {
         isValid =
           !signInError &&
           !!data.session &&
-          (data.user?.email || '').trim().toLowerCase() === normalizedStoredEmail;
+          (data.user?.id || '') === expectedEditorId;
 
         if (!isValid && data.session) {
           await supabase.auth.signOut();
         }
       } else {
+        const normalizedStoredEmail = (restaurant.editor_email || restaurant.editor_username || '').trim().toLowerCase();
         isValid = normalizedEmail === normalizedStoredEmail && password === restaurant.editor_password;
       }
 

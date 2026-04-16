@@ -364,13 +364,19 @@ const serializeRestaurantPayload = (payload) => ({
 });
 
 const serializeMealPayload = (payload) => ({
-  ...payload,
   meal_name_en: payload.name ?? payload.meal_name_en ?? '',
   meal_name_he: payload.name_he ?? payload.meal_name_he ?? '',
   meal_name_ar: payload.name_ar ?? payload.meal_name_ar ?? '',
   meal_description_en: payload.description ?? payload.meal_description_en ?? '',
   meal_description_he: payload.description_he ?? payload.meal_description_he ?? '',
   meal_description_ar: payload.description_ar ?? payload.meal_description_ar ?? '',
+  price: payload.price ?? null,
+  image_url: payload.image_url ?? '',
+  restaurant_id: payload.restaurant_id ?? null,
+  menu_category: payload.menu_category ?? '',
+  dietary_tags: payload.dietary_tags ?? [],
+  is_available: payload.is_available ?? payload.status ?? true,
+  is_featured: payload.is_featured ?? false,
 });
 
 const serializeCategoryPayload = (payload) => ({

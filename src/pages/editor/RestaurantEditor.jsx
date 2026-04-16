@@ -1,35 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import {
+  CalendarDays,
+  Clock,
+  Loader2,
+  LogOut,
+  Pencil,
+  Plus,
+  Settings,
+  Trash2,
+  UtensilsCrossed,
+} from 'lucide-react';
 import { localApi } from '@/lib/localApi';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
+import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Loader2, LogOut, UtensilsCrossed } from 'lucide-react';
-import DietaryBadges from '@/components/shared/DietaryBadges';
-import MealForm from '@/components/manager/MealForm';
-import EventForm from '@/components/manager/EventForm';
-import EditorLogin from './EditorLogin';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { format } from 'date-fns';
-import { CalendarDays, Clock, Settings } from 'lucide-react';
-import SchedulePicker, { getInitialSchedule } from '@/components/shared/SchedulePicker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import ImageUpload from '@/components/shared/ImageUpload';
 import { useToast } from '@/components/ui/use-toast';
-import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
+import DietaryBadges from '@/components/shared/DietaryBadges';
+import SchedulePicker, { getInitialSchedule } from '@/components/shared/SchedulePicker';
+import ImageUpload from '@/components/shared/ImageUpload';
+import MealForm from '@/components/manager/MealForm';
+import EventForm from '@/components/manager/EventForm';
+import EditorLogin from './EditorLogin';
 
 export default function RestaurantEditor() {
   const { slug } = useParams();
   const { t, getLocalizedField } = useI18n();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const [authenticated, setAuthenticated] = useState(false);
   const [showMealForm, setShowMealForm] = useState(false);
   const [editingMeal, setEditingMeal] = useState(null);
@@ -38,14 +55,15 @@ export default function RestaurantEditor() {
   const [deletingMealId, setDeletingMealId] = useState(null);
   const [deletingEventId, setDeletingEventId] = useState(null);
   const [infoForm, setInfoForm] = useState(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     const shouldLockScroll = showMealForm || showEventForm || !!deletingMealId || !!deletingEventId;
     const previousOverflow = document.body.style.overflow;
+
     if (shouldLockScroll) {
       document.body.style.overflow = 'hidden';
     }
+
     return () => {
       document.body.style.overflow = previousOverflow;
     };
@@ -55,9 +73,9 @@ export default function RestaurantEditor() {
     queryKey: ['editor-restaurant', slug],
     queryFn: async () => {
       const all = await localApi.entities.Restaurant.list('name');
-      return all.find((r) => {
-        const s = (r.name || r.id).toLowerCase().replace(/\s+/g, '-');
-        return s === decodeURIComponent(slug);
+      return all.find((item) => {
+        const normalized = (item.name || item.id).toLowerCase().replace(/\s+/g, '-');
+        return normalized === decodeURIComponent(slug);
       });
     },
   });
@@ -66,12 +84,12 @@ export default function RestaurantEditor() {
     if (!restaurant) return undefined;
     if (!isSupabaseConfigured) return undefined;
 
-    const expectedEmail = (restaurant.editor_email || restaurant.editor_username || '').trim().toLowerCase();
+    const expectedEditorId = restaurant.editor_id || '';
 
     const syncAuthState = async () => {
       const { data } = await supabase.auth.getSession();
-      const sessionEmail = (data.session?.user?.email || '').trim().toLowerCase();
-      setAuthenticated(Boolean(expectedEmail && sessionEmail === expectedEmail));
+      const sessionUserId = data.session?.user?.id || '';
+      setAuthenticated(Boolean(expectedEditorId && sessionUserId === expectedEditorId));
     };
 
     syncAuthState();
@@ -79,20 +97,19 @@ export default function RestaurantEditor() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      const sessionEmail = (session?.user?.email || '').trim().toLowerCase();
-      setAuthenticated(Boolean(expectedEmail && sessionEmail === expectedEmail));
+      const sessionUserId = session?.user?.id || '';
+      setAuthenticated(Boolean(expectedEditorId && sessionUserId === expectedEditorId));
     });
 
     return () => subscription.unsubscribe();
   }, [restaurant]);
 
-  // Check session auth
   const isAuthed =
     authenticated ||
     (!isSupabaseConfigured && restaurant && sessionStorage.getItem(`editor_auth_${restaurant.id}`) === 'true');
+
   const restaurantLogo = restaurant?.logo_url || restaurant?.cover_image;
 
-  // Init info form when restaurant loads
   useEffect(() => {
     if (restaurant && !infoForm) {
       setInfoForm({
@@ -104,7 +121,7 @@ export default function RestaurantEditor() {
         schedule: getInitialSchedule(restaurant.schedule),
       });
     }
-  }, [restaurant]);
+  }, [restaurant, infoForm]);
 
   const updateRestaurant = useMutation({
     mutationFn: (data) => localApi.entities.Restaurant.update(restaurant.id, data),
@@ -128,16 +145,24 @@ export default function RestaurantEditor() {
 
   const deleteMeal = useMutation({
     mutationFn: (id) => localApi.entities.Meal.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['editor-meals'] }); setDeletingMealId(null); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['editor-meals'] });
+      setDeletingMealId(null);
+    },
   });
 
   const deleteEvent = useMutation({
     mutationFn: (id) => localApi.entities.Event.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['editor-events'] }); setDeletingEventId(null); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['editor-events'] });
+      setDeletingEventId(null);
+    },
   });
 
   const handleLogout = () => {
-    if (restaurant) sessionStorage.removeItem(`editor_auth_${restaurant.id}`);
+    if (restaurant) {
+      sessionStorage.removeItem(`editor_auth_${restaurant.id}`);
+    }
     if (isSupabaseConfigured) {
       supabase.auth.signOut();
     }
@@ -147,7 +172,7 @@ export default function RestaurantEditor() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
@@ -155,7 +180,7 @@ export default function RestaurantEditor() {
 
   if (!restaurant) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
         Restaurant not found.
       </div>
     );
@@ -169,18 +194,17 @@ export default function RestaurantEditor() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border/50">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-card/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary overflow-hidden flex items-center justify-center">
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary">
               {restaurantLogo ? (
-                <img src={restaurantLogo} alt={name} className="w-full h-full object-cover" />
+                <img src={restaurantLogo} alt={name} className="h-full w-full object-cover" />
               ) : (
                 <UtensilsCrossed className="h-4 w-4 text-primary-foreground" />
               )}
             </div>
-            <span className="font-bold text-lg">{name}</span>
+            <span className="text-lg font-bold">{name}</span>
             <Badge variant="secondary" className="text-xs">Editor</Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
@@ -191,19 +215,18 @@ export default function RestaurantEditor() {
 
       <main className="mx-auto h-[calc(100vh-3.5rem)] max-w-4xl overflow-y-auto px-4 py-6">
         <Tabs defaultValue="meals">
-          <TabsList className="w-full justify-start bg-muted/50 mb-6">
+          <TabsList className="mb-6 w-full justify-start bg-muted/50">
             <TabsTrigger value="meals" className="flex-1 md:flex-none">{t('menu')}</TabsTrigger>
             <TabsTrigger value="events" className="flex-1 md:flex-none">
               {t('events')} {events.length > 0 && `(${events.length})`}
             </TabsTrigger>
             <TabsTrigger value="info" className="flex-1 md:flex-none">
-              <Settings className="h-4 w-4 me-1" /> {t('info')}
+              <Settings className="me-1 h-4 w-4" /> {t('info')}
             </TabsTrigger>
           </TabsList>
 
-          {/* Meals */}
           <TabsContent value="meals">
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t('menu')}</h2>
               <Button onClick={() => { setEditingMeal(null); setShowMealForm(true); }} className="gap-2">
                 <Plus className="h-4 w-4" /> {t('addMeal')}
@@ -214,19 +237,23 @@ export default function RestaurantEditor() {
               <MealForm
                 meal={editingMeal}
                 restaurantId={restaurant.id}
-                onClose={() => { setShowMealForm(false); setEditingMeal(null); queryClient.invalidateQueries({ queryKey: ['editor-meals'] }); }}
+                onClose={() => {
+                  setShowMealForm(false);
+                  setEditingMeal(null);
+                  queryClient.invalidateQueries({ queryKey: ['editor-meals'] });
+                }}
               />
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {meals.map((meal) => (
-                <Card key={meal.id} className="border-0 shadow-sm overflow-hidden">
+                <Card key={meal.id} className="overflow-hidden border-0 shadow-sm">
                   {meal.image_url && (
-                    <div className="aspect-[16/10] bg-muted overflow-hidden">
-                      <img src={meal.image_url} alt={meal.name} className="w-full h-full object-cover" />
+                    <div className="aspect-[16/10] overflow-hidden bg-muted">
+                      <img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" />
                     </div>
                   )}
-                  <CardContent className="p-4 space-y-2">
+                  <CardContent className="space-y-2 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-semibold">{meal.name}</h3>
@@ -241,7 +268,7 @@ export default function RestaurantEditor() {
                         </Button>
                       </div>
                     </div>
-                    {meal.description && <p className="text-xs text-muted-foreground line-clamp-2">{meal.description}</p>}
+                    {meal.description && <p className="line-clamp-2 text-xs text-muted-foreground">{meal.description}</p>}
                     <DietaryBadges tags={meal.dietary_tags} />
                     <Badge variant={(meal.status ?? meal.is_available ?? true) ? 'default' : 'secondary'} className="text-xs">
                       {(meal.status ?? meal.is_available ?? true) ? t('active') : 'Archived'}
@@ -252,9 +279,8 @@ export default function RestaurantEditor() {
             </div>
           </TabsContent>
 
-          {/* Events */}
           <TabsContent value="events">
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t('events')}</h2>
               <Button onClick={() => { setEditingEvent(null); setShowEventForm(true); }} className="gap-2">
                 <Plus className="h-4 w-4" /> {t('addEvent')}
@@ -265,22 +291,26 @@ export default function RestaurantEditor() {
               <EventForm
                 event={editingEvent}
                 restaurantId={restaurant.id}
-                onClose={() => { setShowEventForm(false); setEditingEvent(null); queryClient.invalidateQueries({ queryKey: ['editor-events'] }); }}
+                onClose={() => {
+                  setShowEventForm(false);
+                  setEditingEvent(null);
+                  queryClient.invalidateQueries({ queryKey: ['editor-events'] });
+                }}
               />
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {events.map((event) => (
-                <Card key={event.id} className="border-0 shadow-sm overflow-hidden">
+                <Card key={event.id} className="overflow-hidden border-0 shadow-sm">
                   {event.image_url && (
-                    <div className="aspect-video bg-muted overflow-hidden">
-                      <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
+                    <div className="aspect-video overflow-hidden bg-muted">
+                      <img src={event.image_url} alt={event.title} className="h-full w-full object-cover" />
                     </div>
                   )}
-                  <CardContent className="p-4 space-y-2">
+                  <CardContent className="space-y-2 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold">{event.title}</h3>
-                      <div className="flex gap-1 shrink-0">
+                      <div className="flex shrink-0 gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingEvent(event); setShowEventForm(true); }}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -289,7 +319,7 @@ export default function RestaurantEditor() {
                         </Button>
                       </div>
                     </div>
-                    {event.description && <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>}
+                    {event.description && <p className="line-clamp-2 text-sm text-muted-foreground">{event.description}</p>}
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <CalendarDays className="h-3 w-3" />
@@ -306,38 +336,49 @@ export default function RestaurantEditor() {
               ))}
             </div>
           </TabsContent>
-        </Tabs>
-      </main>
 
-          {/* Info / Schedule tab */}
           <TabsContent value="info">
             {infoForm && (
-              <div className="space-y-5 max-w-2xl">
+              <div className="max-w-2xl space-y-5">
                 <h2 className="text-lg font-bold">{t('restaurantInfo')}</h2>
                 <div>
                   <Label>Cover Image</Label>
-                  <ImageUpload value={infoForm.cover_image} onChange={(v) => setInfoForm({ ...infoForm, cover_image: v })} />
+                  <ImageUpload value={infoForm.cover_image} onChange={(value) => setInfoForm({ ...infoForm, cover_image: value })} />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label>{t('description')} (EN)</Label><Textarea value={infoForm.description} onChange={(e) => setInfoForm({ ...infoForm, description: e.target.value })} rows={2} /></div>
-                  <div><Label>{t('description')} (עב)</Label><Textarea value={infoForm.description_he} onChange={(e) => setInfoForm({ ...infoForm, description_he: e.target.value })} dir="rtl" rows={2} /></div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <Label>{t('description')} (EN)</Label>
+                    <Textarea value={infoForm.description} onChange={(event) => setInfoForm({ ...infoForm, description: event.target.value })} rows={2} />
+                  </div>
+                  <div>
+                    <Label>{t('description')} (עב)</Label>
+                    <Textarea value={infoForm.description_he} onChange={(event) => setInfoForm({ ...infoForm, description_he: event.target.value })} dir="rtl" rows={2} />
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label>{t('address')}</Label><Input value={infoForm.address} onChange={(e) => setInfoForm({ ...infoForm, address: e.target.value })} /></div>
-                  <div><Label>{t('phone')}</Label><Input value={infoForm.phone} onChange={(e) => setInfoForm({ ...infoForm, phone: e.target.value })} /></div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <Label>{t('address')}</Label>
+                    <Input value={infoForm.address} onChange={(event) => setInfoForm({ ...infoForm, address: event.target.value })} />
+                  </div>
+                  <div>
+                    <Label>{t('phone')}</Label>
+                    <Input value={infoForm.phone} onChange={(event) => setInfoForm({ ...infoForm, phone: event.target.value })} />
+                  </div>
                 </div>
                 <div>
                   <Label className="mb-3 block">Opening Hours</Label>
-                  <SchedulePicker value={infoForm.schedule} onChange={(v) => setInfoForm({ ...infoForm, schedule: v })} />
+                  <SchedulePicker value={infoForm.schedule} onChange={(value) => setInfoForm({ ...infoForm, schedule: value })} />
                 </div>
                 <Button onClick={() => updateRestaurant.mutate(infoForm)} disabled={updateRestaurant.isPending}>
-                  {updateRestaurant.isPending && <Loader2 className="h-4 w-4 animate-spin me-2" />}
+                  {updateRestaurant.isPending && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
                   {t('save')}
                 </Button>
               </div>
             )}
           </TabsContent>
-      {/* Delete Meal */}
+        </Tabs>
+      </main>
+
       <AlertDialog open={!!deletingMealId} onOpenChange={() => setDeletingMealId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -346,12 +387,13 @@ export default function RestaurantEditor() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMeal.mutate(deletingMealId)} className="bg-destructive text-destructive-foreground">{t('delete')}</AlertDialogAction>
+            <AlertDialogAction onClick={() => deleteMeal.mutate(deletingMealId)} className="bg-destructive text-destructive-foreground">
+              {t('delete')}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Event */}
       <AlertDialog open={!!deletingEventId} onOpenChange={() => setDeletingEventId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -360,7 +402,9 @@ export default function RestaurantEditor() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteEvent.mutate(deletingEventId)} className="bg-destructive text-destructive-foreground">{t('delete')}</AlertDialogAction>
+            <AlertDialogAction onClick={() => deleteEvent.mutate(deletingEventId)} className="bg-destructive text-destructive-foreground">
+              {t('delete')}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

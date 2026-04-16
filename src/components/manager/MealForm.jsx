@@ -45,10 +45,8 @@ export default function MealForm({ meal, restaurantId, onClose }) {
     mutationFn: (data) => {
       const payload = {
         ...data,
-        status: data.status !== false,
         is_available: data.status !== false,
         price: Number(data.price),
-        sort_order: Number(data.sort_order),
         restaurant_id: restaurantId,
       };
       if (isEditing) return localApi.entities.Meal.update(meal.id, payload);
