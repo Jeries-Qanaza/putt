@@ -19,6 +19,7 @@ import DietaryBadges from '@/components/shared/DietaryBadges';
 import SchedulePicker, { getInitialSchedule } from '@/components/shared/SchedulePicker';
 import ImageUpload from '@/components/shared/ImageUpload';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
+import Seo from '@/components/shared/Seo';
 import MealForm from '@/components/manager/MealForm';
 import EventForm from '@/components/manager/EventForm';
 import EditorLogin from './EditorLogin';
@@ -218,6 +219,7 @@ export default function RestaurantEditor() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-background">
+      <Seo title={`${name} Editor`} description={`Manage ${name} in Putt.`} robots="noindex,nofollow" />
       <header className="sticky top-0 z-50 border-b border-border/50 bg-card/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
           <div className="flex items-center gap-2">

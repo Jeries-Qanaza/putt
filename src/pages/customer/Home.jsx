@@ -3,11 +3,13 @@ import { localApi } from '@/lib/localApi';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search } from 'lucide-react';
 import RestaurantCard from '@/components/shared/RestaurantCard';
+import Seo from '@/components/shared/Seo';
 import { motion } from 'framer-motion';
 import { PUTT_LOGO_URL } from '@/lib/branding';
+import { toSlug } from '@/lib/slugify';
+import { toAbsoluteUrl } from '@/lib/seo';
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -23,7 +25,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 export default function Home() {
-  const { t, getLocalizedField } = useI18n();
+  const { t, getLocalizedField, lang } = useI18n();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
@@ -89,8 +91,35 @@ export default function Home() {
     return result;
   }, [restaurantsWithDistance, search, selectedCategory]);
 
+  const homeDescription = 'Discover nearby restaurants, explore menus, and check useful dining details across Putt.';
+  const homeJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Putt',
+    url: toAbsoluteUrl('/'),
+    description: homeDescription,
+    inLanguage: lang,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: filtered.slice(0, 24).map((restaurant, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        url: toAbsoluteUrl(`/${toSlug(restaurant.name || restaurant.name_en || restaurant.id)}`),
+        name: getLocalizedField(restaurant, 'name'),
+      })),
+    },
+  };
+
   return (
     <div className="py-6 space-y-6">
+      <Seo
+        title="Discover Restaurants and Menus"
+        description={homeDescription}
+        canonical={toAbsoluteUrl('/')}
+        image={PUTT_LOGO_URL}
+        lang={lang}
+        jsonLd={homeJsonLd}
+      />
       {/* Hero */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -149,7 +178,7 @@ export default function Home() {
 
       {/* Results */}
       {loadingRestaurants ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="aspect-[16/14] rounded-lg bg-muted animate-pulse" />
           ))}
@@ -160,7 +189,7 @@ export default function Home() {
           <p>{t('noResults')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
           {filtered.map((restaurant) => (
             <RestaurantCard key={restaurant.id} restaurant={restaurant} distance={restaurant.distance} />
           ))}

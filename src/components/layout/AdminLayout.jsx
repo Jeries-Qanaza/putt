@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { PUTT_LOGO_URL } from '@/lib/branding';
 import { LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Seo from '@/components/shared/Seo';
 
 const navItems = [
   { path: '/admin', icon: LayoutDashboard, labelKey: 'adminDashboard' },
@@ -36,6 +37,7 @@ export default function AdminLayout() {
 
   return (
     <div dir={dir} className="flex min-h-screen bg-background">
+      <Seo title="Admin" description="Putt admin area." robots="noindex,nofollow" />
       <aside className="sticky top-0 hidden min-h-screen w-64 flex-col border-e border-border bg-card md:flex">
         <div className="border-b border-border p-4">
           <Link to="/admin" onClick={handleAdminHomeClick} className="flex items-center gap-2">

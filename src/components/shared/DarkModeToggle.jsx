@@ -4,8 +4,7 @@ import { Moon, Sun } from 'lucide-react';
 
 export default function DarkModeToggle() {
   const [dark, setDark] = useState(() => {
-    return localStorage.getItem('putt_theme') === 'dark' ||
-      (!localStorage.getItem('putt_theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    return localStorage.getItem('putt_theme') === 'dark';
   });
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toSlug } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Phone } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 

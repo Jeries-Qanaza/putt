@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Accessibility, ZoomIn, ZoomOut, Contrast, X, RotateCcw, Highlighter } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const DEFAULTS = { fontSize: 100, contrast: false, highlightLinks: false };
 
@@ -31,7 +32,9 @@ const LABELS = {
 
 export default function AccessibilityMenu() {
   const { lang, dir } = useI18n();
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [overlayContext, setOverlayContext] = useState('');
   const [settings, setSettings] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('putt_a11y') || 'null');
@@ -45,17 +48,42 @@ export default function AccessibilityMenu() {
   const isRTL = dir === 'rtl';
 
   useEffect(() => {
+    const syncOverlayContext = () => {
+      setOverlayContext(document.body.dataset.overlayContext || '');
+    };
+
+    syncOverlayContext();
+
+    const observer = new MutationObserver(syncOverlayContext);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-overlay-context'] });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('putt_a11y', JSON.stringify(settings));
     document.documentElement.style.fontSize = `${settings.fontSize}%`;
     document.documentElement.setAttribute('data-contrast', settings.contrast ? 'high' : 'normal');
     document.documentElement.setAttribute('data-highlight-links', settings.highlightLinks ? 'true' : 'false');
   }, [settings]);
 
+  const shouldHide = isMobile && overlayContext === 'meal-sheet';
+
+  useEffect(() => {
+    if (shouldHide) {
+      setOpen(false);
+    }
+  }, [shouldHide]);
+
   const updateSetting = (key, value) => setSettings((previous) => ({ ...previous, [key]: value }));
   const reset = () => setSettings(DEFAULTS);
 
   const fabPosition = isRTL ? 'right-4' : 'left-4';
   const panelPosition = isRTL ? 'right-4' : 'left-4';
+
+  if (shouldHide) {
+    return null;
+  }
 
   return (
     <>

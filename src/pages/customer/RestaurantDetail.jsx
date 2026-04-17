@@ -9,8 +9,10 @@ import ScheduleDisplay from '@/components/shared/ScheduleDisplay';
 import MealCard from '@/components/customer/MealCard';
 import MealDetailSheet from '@/components/customer/MealDetailSheet';
 import MenuCategoryGrid, { getCategoryPhoto } from '@/components/customer/MenuCategoryGrid';
+import Seo from '@/components/shared/Seo';
 import { toSlug } from '@/lib/slugify';
 import PageNotFound from '@/lib/PageNotFound';
+import { scheduleToOpeningHoursSpecification, toAbsoluteUrl } from '@/lib/seo';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -52,7 +54,7 @@ function normalizeCategoryKey(value) {
 export default function RestaurantDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { t, getLocalizedField } = useI18n();
+  const { t, getLocalizedField, lang } = useI18n();
   const [showInfo, setShowInfo] = useState(false);
   const [selectedCategoryKey, setSelectedCategoryKey] = useState(null);
   const [sheetMeals, setSheetMeals] = useState(null);
@@ -63,6 +65,7 @@ export default function RestaurantDetail() {
   const infoPanelRef = useRef(null);
   const mobileInfoToggleRef = useRef(null);
   const desktopInfoToggleRef = useRef(null);
+  const swipeStartRef = useRef(null);
 
   const { data: restaurant, isLoading: loadingRestaurant } = useQuery({
     queryKey: ['restaurant', slug],
@@ -83,6 +86,10 @@ export default function RestaurantDetail() {
       navigate(`/${canonicalSlug}`, { replace: true });
     }
   }, [restaurant, slug, navigate]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [slug]);
 
   useEffect(() => {
     if (!showInfo) return undefined;
@@ -334,6 +341,104 @@ export default function RestaurantDetail() {
 
   const selectedSection = categorySections.find((section) => section.key === selectedCategoryKey);
   const openState = useMemo(() => getRestaurantOpenState(restaurant?.schedule), [restaurant?.schedule]);
+  const canonicalUrl = restaurant ? toAbsoluteUrl(`/${toSlug(restaurant.name || restaurant.name_en || restaurant.id)}`) : '';
+  const seoDescription = desc || `${name} on Putt. Browse the menu, opening hours, contact details, and restaurant information.`;
+  const restaurantJsonLd = restaurant
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'Restaurant',
+        name,
+        description: seoDescription,
+        url: canonicalUrl,
+        image: logoUrl || undefined,
+        telephone: restaurant.phone || undefined,
+        address: restaurant.address
+          ? {
+              '@type': 'PostalAddress',
+              streetAddress: restaurant.address,
+              addressCountry: 'IL',
+            }
+          : undefined,
+        geo:
+          restaurant.latitude && restaurant.longitude
+            ? {
+                '@type': 'GeoCoordinates',
+                latitude: restaurant.latitude,
+                longitude: restaurant.longitude,
+              }
+            : undefined,
+        servesCuisine: restaurant.categories?.length ? restaurant.categories : undefined,
+        openingHoursSpecification: scheduleToOpeningHoursSpecification(restaurant.schedule),
+        hasMenu: {
+          '@type': 'Menu',
+          name: `${name} Menu`,
+          hasMenuSection: categorySections.map((section) => ({
+            '@type': 'MenuSection',
+            name: section.label,
+            hasMenuSection:
+              section.groups.length > 1
+                ? section.groups.map((group) => ({
+                    '@type': 'MenuSection',
+                    name: group.label,
+                    hasMenuItem: group.meals.map((meal) => ({
+                      '@type': 'MenuItem',
+                      name: getLocalizedField(meal, 'name'),
+                      description: getLocalizedField(meal, 'description') || undefined,
+                      image: meal.image_url || undefined,
+                      offers: {
+                        '@type': 'Offer',
+                        price: meal.price,
+                        priceCurrency: 'ILS',
+                        availability:
+                          (meal.status ?? meal.is_available ?? true) === false
+                            ? 'https://schema.org/OutOfStock'
+                            : 'https://schema.org/InStock',
+                      },
+                    })),
+                  }))
+                : undefined,
+            hasMenuItem:
+              section.groups.length === 1
+                ? section.groups[0].meals.map((meal) => ({
+                    '@type': 'MenuItem',
+                    name: getLocalizedField(meal, 'name'),
+                    description: getLocalizedField(meal, 'description') || undefined,
+                    image: meal.image_url || undefined,
+                    offers: {
+                      '@type': 'Offer',
+                      price: meal.price,
+                      priceCurrency: 'ILS',
+                      availability:
+                        (meal.status ?? meal.is_available ?? true) === false
+                          ? 'https://schema.org/OutOfStock'
+                          : 'https://schema.org/InStock',
+                    },
+                  }))
+                : undefined,
+          })),
+        },
+      }
+    : null;
+  const breadcrumbJsonLd = restaurant
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Putt',
+            item: toAbsoluteUrl('/'),
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name,
+            item: canonicalUrl,
+          },
+        ],
+      }
+    : null;
 
   useEffect(() => {
     if (!selectedSection) return undefined;
@@ -346,9 +451,43 @@ export default function RestaurantDetail() {
     };
   }, [selectedSection]);
 
+  useEffect(() => {
+    if (!selectedCategoryKey) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [selectedCategoryKey]);
+
+  useEffect(() => {
+    document.body.dataset.overlayContext = sheetMeals ? 'meal-sheet' : '';
+    return () => {
+      document.body.dataset.overlayContext = '';
+    };
+  }, [sheetMeals]);
+
   const openSheet = (mealsList, index) => {
     setSheetMeals(mealsList);
     setSheetIndex(index);
+  };
+
+  const handleCategoryTouchStart = (event) => {
+    const touch = event.touches[0];
+    swipeStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  };
+
+  const handleCategoryTouchEnd = (event) => {
+    if (!selectedSection || sheetMeals || !swipeStartRef.current) return;
+
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+
+    const deltaX = touch.clientX - swipeStartRef.current.x;
+    const deltaY = touch.clientY - swipeStartRef.current.y;
+    swipeStartRef.current = null;
+
+    if (Math.abs(deltaY) > 60) return;
+
+    if (deltaX < -80) {
+      setSelectedCategoryKey(null);
+    }
   };
 
   if (loadingRestaurant) {
@@ -368,6 +507,14 @@ export default function RestaurantDetail() {
 
   return (
     <div className="space-y-5 py-2 md:py-6">
+      <Seo
+        title={name}
+        description={seoDescription}
+        canonical={canonicalUrl}
+        image={logoUrl}
+        lang={lang}
+        jsonLd={[restaurantJsonLd, breadcrumbJsonLd]}
+      />
       <AnimatePresence>
         {showWelcome ? (
           <motion.div
@@ -535,8 +682,12 @@ export default function RestaurantDetail() {
             )}
           </>
         ) : (
-          <div className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm md:h-[calc(100vh-6.5rem)]">
-            <div className="sticky top-0 z-20 space-y-2 border-b border-border/50 bg-card/95 px-4 py-2 backdrop-blur md:px-5">
+          <div
+            className="flex h-[calc(100vh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm md:h-[calc(100vh-6.5rem)]"
+            onTouchStart={handleCategoryTouchStart}
+            onTouchEnd={handleCategoryTouchEnd}
+          >
+            <div className="sticky top-0 z-20 shrink-0 space-y-2 border-b border-border/50 bg-card/95 px-4 py-3 backdrop-blur md:px-5">
               <button
                 onClick={() => setSelectedCategoryKey(null)}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
