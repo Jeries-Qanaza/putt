@@ -140,10 +140,10 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:left-1/2 md:right-auto md:top-1/2 md:bottom-auto md:w-[min(92vw,32rem)] md:max-h-[88vh] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[2rem]"
+        className="fixed bottom-0 left-0 right-0 z-[201] flex max-h-[90vh] flex-col overflow-hidden rounded-t-3xl bg-card shadow-2xl md:inset-[8vh_10vw] md:max-h-none md:rounded-[2rem] md:border md:border-border/60"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:aspect-[4/3]">
+        <div className="relative w-full shrink-0 overflow-hidden bg-muted aspect-video md:hidden">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={`img-${index}`}
@@ -177,7 +177,7 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
           </AnimatePresence>
 
           <motion.div
-            className="absolute left-0 right-0 top-0 z-10 flex cursor-grab justify-center pt-3 pb-4 active:cursor-grabbing"
+            className="absolute left-0 right-0 top-0 z-10 flex cursor-grab justify-center pt-3 pb-4 active:cursor-grabbing md:hidden"
             drag="y"
             dragConstraints={{ top: 0 }}
             dragElastic={{ top: 0, bottom: 0.4 }}
@@ -203,6 +203,57 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
           </div>
         </div>
 
+        <div className="hidden items-start gap-6 border-b border-border/60 bg-card px-8 py-7 md:flex">
+          <div className="relative h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-muted">
+            {currentImage ? (
+              <img
+                src={currentImage}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={() => {
+                  if (currentImage !== fallbackImage && fallbackImage) {
+                    setCurrentImage(fallbackImage);
+                    return;
+                  }
+                  setCurrentImage('');
+                }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-5xl">
+                *
+              </div>
+            )}
+            <div className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white">
+              {index + 1} / {meals.length}
+            </div>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t('mealLabel')}</p>
+                <h2 className="text-3xl font-bold leading-tight text-foreground">{name}</h2>
+              </div>
+              <button
+                onClick={onClose}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background text-foreground transition-colors hover:bg-muted"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 text-2xl font-bold text-primary">
+              {t('currency')}
+              {meal.price}
+            </div>
+            {desc ? <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground">{desc}</p> : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <DietaryBadges tags={meal.dietary_tags} size="md" />
+            </div>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-hidden bg-card">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
@@ -224,9 +275,9 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
               onWheel={handleWheel}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
-              className="max-h-[42vh] select-none overflow-y-auto p-5 md:max-h-[calc(88vh-19rem)] md:px-6 md:py-5"
+              className="max-h-[42vh] select-none overflow-y-auto p-5 md:max-h-[calc(84vh-20rem)] md:px-8 md:py-7"
             >
-              <div className="rounded-[1.5rem] border border-border/60 bg-background/80 p-5 shadow-sm md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+              <div className="rounded-[1.5rem] border border-border/60 bg-background/80 p-5 shadow-sm md:hidden">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-2">
                     <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:hidden">{t('mealLabel')}</div>
@@ -247,7 +298,7 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
         </div>
 
         {meals.length > 1 ? (
-          <div className="flex shrink-0 justify-between gap-3 px-4 pt-1 pb-5">
+          <div className="flex shrink-0 justify-between gap-3 px-4 pt-1 pb-5 md:px-8 md:pb-7">
             <button
               onClick={goPrev}
               disabled={index === 0}

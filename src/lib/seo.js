@@ -28,7 +28,8 @@ export function toAbsoluteUrl(path = '/') {
 }
 
 export function buildTitle(title) {
-  return title ? `${title} | ${DEFAULT_SITE_NAME}` : DEFAULT_SITE_NAME;
+  if (!title || title === DEFAULT_SITE_NAME) return DEFAULT_SITE_NAME;
+  return `${title}-${DEFAULT_SITE_NAME}`;
 }
 
 export function clampDescription(value, fallback = DEFAULT_DESCRIPTION) {

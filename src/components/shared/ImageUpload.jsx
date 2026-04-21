@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Loader2 } from 'lucide-react';
-import { prepareImageForUpload } from '@/lib/imageUpload';
+import { uploadImageToStorage } from '@/lib/imageUpload';
 
-export default function ImageUpload({ value, onChange, className = '' }) {
+export default function ImageUpload({ value, onChange, className = '', restaurantId = '', entityType = 'uploads' }) {
   const { t } = useI18n();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -15,7 +15,7 @@ export default function ImageUpload({ value, onChange, className = '' }) {
     setUploading(true);
     setError('');
     try {
-      const fileUrl = await prepareImageForUpload(file);
+      const fileUrl = await uploadImageToStorage(file, { restaurantId, entityType });
       onChange(fileUrl);
     } catch (uploadError) {
       setError(uploadError.message || 'Failed to process image.');

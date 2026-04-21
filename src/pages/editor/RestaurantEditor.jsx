@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { CalendarDays, ChevronRight, Clock, Loader2, LogOut, Pencil, Plus, Settings, Trash2, UtensilsCrossed } from 'lucide-react';
+import { CalendarDays, ChevronLeft, Clock, FolderOpen, Loader2, LogOut, Pencil, Plus, Settings, Trash2, UtensilsCrossed } from 'lucide-react';
 import { localApi } from '@/lib/localApi';
 import { useI18n } from '@/lib/i18n';
 import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
@@ -40,7 +40,8 @@ export default function RestaurantEditor() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [deletingCategoryId, setDeletingCategoryId] = useState(null);
-  const [categoryForm, setCategoryForm] = useState({ name: '', name_he: '', name_ar: '', icon: '', sort_order: 0, parent_id: 'root' });
+  const [currentCategoryId, setCurrentCategoryId] = useState(null);
+  const [categoryForm, setCategoryForm] = useState({ name: '', name_he: '', name_ar: '', sort_order: 0, parent_id: 'root' });
   const [infoForm, setInfoForm] = useState(null);
 
   useEffect(() => {
@@ -113,7 +114,6 @@ export default function RestaurantEditor() {
     enabled: !!restaurant?.id && isAuthed,
   });
 
-  const parentCategories = useMemo(() => categories.filter((category) => !category.parent_id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)), [categories]);
   const childCategoriesByParent = useMemo(() => categories.reduce((acc, category) => {
     const key = category.parent_id || 'root';
     if (!acc[key]) acc[key] = [];
@@ -128,18 +128,46 @@ export default function RestaurantEditor() {
     });
     return acc;
   }, {}), [meals]);
+  const currentCategory = useMemo(() => categories.find((category) => category.id === currentCategoryId) || null, [categories, currentCategoryId]);
+  const currentCategoryName = currentCategory?.name || currentCategory?.name_en || '';
+  const visibleCategories = useMemo(() => childCategoriesByParent[currentCategoryId || 'root'] || [], [childCategoriesByParent, currentCategoryId]);
+  const currentCategoryMeals = useMemo(() => {
+    if (!currentCategory) return [];
+    return mealsByCategory[currentCategory.id] || mealsByCategory[currentCategoryName] || [];
+  }, [currentCategory, currentCategoryName, mealsByCategory]);
+  const activeMeals = useMemo(() => meals.filter((meal) => (meal.is_available ?? meal.status ?? true) !== false), [meals]);
+  const inactiveMeals = useMemo(() => meals.filter((meal) => (meal.is_available ?? meal.status ?? true) === false), [meals]);
+
+  useEffect(() => {
+    if (currentCategoryId && !categories.some((category) => category.id === currentCategoryId)) {
+      setCurrentCategoryId(null);
+    }
+  }, [categories, currentCategoryId]);
 
   const deleteMeal = useMutation({
     mutationFn: (id) => localApi.entities.Meal.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['editor-meals'] }); setDeletingMealId(null); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['editor-meals'] });
+      setDeletingMealId(null);
+    },
   });
   const deleteEvent = useMutation({
     mutationFn: (id) => localApi.entities.Event.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['editor-events'] }); setDeletingEventId(null); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['editor-events'] });
+      setDeletingEventId(null);
+    },
   });
   const saveCategory = useMutation({
     mutationFn: (data) => {
-      const payload = { ...data, sort_order: Number(data.sort_order || 0), restaurant_id: restaurant.id, parent_id: data.parent_id === 'root' ? null : data.parent_id };
+      const payload = {
+        name: data.name,
+        name_he: data.name_he || '',
+        name_ar: data.name_ar || '',
+        sort_order: Number(data.sort_order || 0),
+        restaurant_id: restaurant.id,
+        parent_id: data.parent_id === 'root' ? null : data.parent_id,
+      };
       return editingCategory ? localApi.entities.Category.update(editingCategory.id, payload) : localApi.entities.Category.create(payload);
     },
     onSuccess: () => {
@@ -150,7 +178,12 @@ export default function RestaurantEditor() {
   });
   const deleteCategory = useMutation({
     mutationFn: (id) => localApi.entities.Category.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['editor-categories'] }); setDeletingCategoryId(null); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['editor-categories'] });
+      setDeletingCategoryId(null);
+      setShowCategoryForm(false);
+      setEditingCategory(null);
+    },
   });
 
   const handleLogout = () => {
@@ -166,15 +199,13 @@ export default function RestaurantEditor() {
       name: category.name || '',
       name_he: category.name_he || '',
       name_ar: category.name_ar || '',
-      icon: category.icon || '',
       sort_order: category.sort_order || 0,
       parent_id: category.parent_id || 'root',
     } : {
       name: '',
       name_he: '',
       name_ar: '',
-      icon: '',
-      sort_order: categories.length,
+      sort_order: visibleCategories.length,
       parent_id: parentId,
     });
     setShowCategoryForm(true);
@@ -187,15 +218,18 @@ export default function RestaurantEditor() {
   };
 
   const requestDeleteCategory = (category) => {
-    const hasChildren = (childCategoriesByParent[category.id] || []).length > 0;
-    const hasMeals = (mealsByCategory[category.id] || []).length > 0;
+    const categoryIdsToCheck = [category.id];
+    for (let index = 0; index < categoryIdsToCheck.length; index += 1) {
+      const nextChildren = childCategoriesByParent[categoryIdsToCheck[index]] || [];
+      nextChildren.forEach((child) => categoryIdsToCheck.push(child.id));
+    }
 
-    if (hasChildren || hasMeals) {
+    const hasMeals = categoryIdsToCheck.some((categoryId) => (mealsByCategory[categoryId] || []).length > 0);
+
+    if (hasMeals) {
       toast({
         title: t('cannotUndo'),
-        description: hasChildren
-          ? 'Delete child categories first.'
-          : 'Move or delete meals in this category first.',
+        description: 'Move or delete meals in this category tree first.',
         variant: 'destructive',
       });
       return;
@@ -237,96 +271,176 @@ export default function RestaurantEditor() {
       </header>
 
       <main className="mx-auto h-[calc(100vh-3.5rem)] max-w-4xl overflow-y-auto px-4 py-6">
-        <Tabs defaultValue="meals">
+        <Tabs defaultValue="categories">
           <TabsList className="mb-6 w-full justify-start bg-muted/50">
-            <TabsTrigger value="meals" className="flex-1 md:flex-none">{t('menu')}</TabsTrigger>
             <TabsTrigger value="categories" className="flex-1 md:flex-none">{t('categories')}</TabsTrigger>
+            <TabsTrigger value="meals" className="flex-1 md:flex-none">{t('menu')}</TabsTrigger>
             <TabsTrigger value="events" className="flex-1 md:flex-none">{t('events')} {events.length > 0 && `(${events.length})`}</TabsTrigger>
             <TabsTrigger value="info" className="flex-1 md:flex-none"><Settings className="me-1 h-4 w-4" /> {t('info')}</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="categories">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">{currentCategory ? getLocalizedField(currentCategory, 'name') : t('categories')}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {currentCategory ? 'Open a subcategory or manage meals inside this folder.' : 'Open a category like a folder and build your menu tree.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                {currentCategory ? (
+                  <Button variant="outline" onClick={() => setCurrentCategoryId(currentCategory.parent_id || null)} className="gap-2">
+                    <ChevronLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                ) : null}
+                <Button onClick={() => openCategoryForm(null, currentCategory?.id || 'root')} className="gap-2"><Plus className="h-4 w-4" /> {t('addCategory')}</Button>
+                {currentCategory ? <Button onClick={() => openMealForm(null, currentCategoryName)} className="gap-2"><Plus className="h-4 w-4" /> {t('addMeal')}</Button> : null}
+              </div>
+            </div>
+
+            <Card className="border-0 shadow-sm">
+              <CardContent className="space-y-4 p-4">
+                {currentCategory ? (
+                  <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-3">
+                    <p className="font-semibold">{getLocalizedField(currentCategory, 'name')}</p>
+                    <p className="text-xs text-muted-foreground">{currentCategoryMeals.length} {t('items')} · {visibleCategories.length} {t('categories')}</p>
+                  </div>
+                ) : null}
+
+                {visibleCategories.length > 0 ? (
+                  <div className="space-y-3">
+                    {visibleCategories.map((category) => {
+                      const categoryName = category.name || category.name_en || '';
+                      const categoryMeals = mealsByCategory[category.id] || mealsByCategory[categoryName] || [];
+                      const children = childCategoriesByParent[category.id] || [];
+
+                      return (
+                        <div key={category.id} className="flex items-center justify-between rounded-2xl border border-border/60 bg-background px-4 py-4 shadow-sm">
+                          <button type="button" onClick={() => setCurrentCategoryId(category.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                              <FolderOpen className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold">{getLocalizedField(category, 'name')}</p>
+                              <p className="text-xs text-muted-foreground">{categoryMeals.length} {t('items')} · {children.length} {t('categories')}</p>
+                              {children.length > 0 ? <p className="mt-1 truncate text-xs text-muted-foreground/80">{children.map((child) => getLocalizedField(child, 'name')).join(' · ')}</p> : null}
+                            </div>
+                          </button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openCategoryForm(category)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {currentCategory ? (
+                  <div className="space-y-3 border-t border-border/60 pt-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">{t('menu')}</p>
+                      <Badge variant="secondary">{currentCategoryMeals.length}</Badge>
+                    </div>
+                    {currentCategoryMeals.length > 0 ? (
+                      <div className="space-y-2">
+                        {currentCategoryMeals.map((meal) => (
+                          <div key={meal.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{getLocalizedField(meal, 'name')}</p>
+                              <p className="text-xs text-muted-foreground">{t('currency')}{meal.price}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openMealForm(meal)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
+                        No meals in this category yet.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {categories.length === 0 || (!currentCategory && visibleCategories.length === 0) ? (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-4 py-10 text-center text-muted-foreground">
+                    {t('noCategoriesYet')}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            {showCategoryForm ? <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-2xl"><div className="mb-4"><h3 className="text-lg font-bold">{editingCategory ? t('editCategory') : t('addCategory')}</h3><p className="mt-1 text-sm text-muted-foreground">Categories are saved directly in Supabase and linked with their parent folder.</p></div><form onSubmit={(event) => { event.preventDefault(); saveCategory.mutate(categoryForm); }} className="space-y-4"><div><Label>{t('parentCategory')}</Label><select value={categoryForm.parent_id} onChange={(event) => setCategoryForm({ ...categoryForm, parent_id: event.target.value })} className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="root">{t('topLevel')}</option>{categories.filter((category) => category.id !== editingCategory?.id).map((category) => <option key={category.id} value={category.id}>{getLocalizedField(category, 'name')}</option>)}</select></div><div><Label>{t('categoryName')} (EN)</Label><Input value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} required /></div><div><Label>{t('categoryName')} (HE)</Label><Input value={categoryForm.name_he} onChange={(event) => setCategoryForm({ ...categoryForm, name_he: event.target.value })} dir="rtl" /></div><div><Label>{t('categoryName')} (AR)</Label><Input value={categoryForm.name_ar} onChange={(event) => setCategoryForm({ ...categoryForm, name_ar: event.target.value })} dir="rtl" /></div><div><Label>{t('sortOrder')}</Label><Input value={categoryForm.sort_order} onChange={(event) => setCategoryForm({ ...categoryForm, sort_order: event.target.value })} type="number" /></div><div className="flex justify-between gap-2 pt-2">{editingCategory ? <Button type="button" variant="destructive" onClick={() => { setShowCategoryForm(false); requestDeleteCategory(editingCategory); }}>Delete</Button> : <span /> }<div className="flex gap-2"><Button type="button" variant="outline" onClick={() => { setShowCategoryForm(false); setEditingCategory(null); }}>{t('cancel')}</Button><Button type="submit" disabled={saveCategory.isPending}>{saveCategory.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}{t('save')}</Button></div></div></form></div></div> : null}
+          </TabsContent>
 
           <TabsContent value="meals">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t('menu')}</h2>
               <Button onClick={() => openMealForm()} className="gap-2"><Plus className="h-4 w-4" /> {t('addMeal')}</Button>
             </div>
-            {showMealForm ? <MealForm meal={editingMeal} restaurantId={restaurant.id} categories={categories} initialCategory={initialMealCategory} onClose={closeMealForm} /> : null}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {meals.map((meal) => (
-                <Card key={meal.id} className="overflow-hidden border-0 shadow-sm">
-                  {meal.image_url ? <div className="aspect-[16/10] overflow-hidden bg-muted"><img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" /></div> : null}
-                  <CardContent className="space-y-2 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold">{getLocalizedField(meal, 'name')}</h3>
-                        <p className="text-sm font-bold text-primary">{t('currency')}{meal.price}</p>
-                        {meal.menu_category ? <p className="mt-1 text-xs text-muted-foreground">{meal.menu_category}</p> : null}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMealForm(meal)}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingMealId(meal.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    </div>
-                    {getLocalizedField(meal, 'description') ? <p className="line-clamp-2 text-xs text-muted-foreground">{getLocalizedField(meal, 'description')}</p> : null}
-                    <DietaryBadges tags={meal.dietary_tags} />
-                    <Badge variant={(meal.status ?? meal.is_available ?? true) ? 'default' : 'secondary'} className="text-xs">{(meal.status ?? meal.is_available ?? true) ? t('active') : t('inactive')}</Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="categories">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">{t('categories')}</h2>
-              <Button onClick={() => openCategoryForm()} className="gap-2"><Plus className="h-4 w-4" /> {t('addCategory')}</Button>
-            </div>
-            <div className="space-y-4">
-              {parentCategories.map((category) => {
-                const categoryName = category.name || category.name_en || '';
-                const categoryMeals = mealsByCategory[category.id] || mealsByCategory[categoryName] || [];
-                const children = childCategoriesByParent[category.id] || [];
-                return (
-                  <Card key={category.id} className="border-0 shadow-sm">
-                    <CardContent className="space-y-4 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{category.icon || '*'}</span>
+                        <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-semibold">{t('active')}</h3>
+                  <Badge variant="secondary">{activeMeals.length}</Badge>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {activeMeals.map((meal) => (
+                    <Card key={meal.id} className="overflow-hidden border-0 shadow-sm">
+                      {meal.image_url ? <div className="aspect-[16/10] overflow-hidden bg-muted"><img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" /></div> : null}
+                      <CardContent className="space-y-2 p-4">
+                        <div className="flex items-start justify-between gap-2">
                           <div>
-                            <p className="font-semibold">{getLocalizedField(category, 'name')}</p>
-                            <p className="text-xs text-muted-foreground">{categoryMeals.length} {t('items')} · {children.length} {t('sections')}</p>
+                            <h3 className="font-semibold">{getLocalizedField(meal, 'name')}</h3>
+                            <p className="text-sm font-bold text-primary">{t('currency')}{meal.price}</p>
+                            {meal.menu_category ? <p className="mt-1 text-xs text-muted-foreground">{meal.menu_category}</p> : null}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMealForm(meal)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingMealId(meal.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                           </div>
                         </div>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Button variant="ghost" size="sm" className="gap-1" onClick={() => openMealForm(null, categoryName)}><Plus className="h-3.5 w-3.5" /> {t('addMeal')}</Button>
-                          <Button variant="ghost" size="sm" className="gap-1" onClick={() => openCategoryForm(null, category.id)}><Plus className="h-3.5 w-3.5" /> {t('addChildCategory')}</Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCategoryForm(category)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteCategory(category)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
-                      </div>
-                      {categoryMeals.length > 0 ? <div className="rounded-xl bg-muted/40 p-3"><p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('menu')}</p><div className="space-y-2">{categoryMeals.map((meal) => <div key={meal.id} className="flex items-center justify-between gap-3 rounded-lg bg-background px-3 py-2"><div className="min-w-0"><p className="truncate text-sm font-medium">{getLocalizedField(meal, 'name')}</p><p className="text-xs text-muted-foreground">{t('currency')}{meal.price}</p></div><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMealForm(meal)}><Pencil className="h-3.5 w-3.5" /></Button></div>)}</div></div> : null}
-                      {children.length > 0 ? <div className="space-y-2 rounded-xl bg-muted/40 p-3">{children.map((child) => {
-                        const childName = child.name || child.name_en || '';
-                        const childMeals = mealsByCategory[child.id] || mealsByCategory[childName] || [];
-                        return <div key={child.id} className="space-y-2 rounded-lg bg-background px-3 py-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-2"><ChevronRight className="h-4 w-4 text-muted-foreground" /><span>{child.icon || '*'}</span><div className="min-w-0"><p className="truncate text-sm font-medium">{getLocalizedField(child, 'name')}</p><p className="text-xs text-muted-foreground">{childMeals.length} {t('items')}</p></div></div>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="sm" className="gap-1" onClick={() => openMealForm(null, childName)}><Plus className="h-3.5 w-3.5" /> {t('addMeal')}</Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCategoryForm(child)}><Pencil className="h-3.5 w-3.5" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteCategory(child)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                            </div>
+                        {getLocalizedField(meal, 'description') ? <p className="line-clamp-2 text-xs text-muted-foreground">{getLocalizedField(meal, 'description')}</p> : null}
+                        <DietaryBadges tags={meal.dietary_tags} />
+                        <Badge variant="default" className="text-xs">{t('active')}</Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-border/70 pt-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-semibold">{t('inactive')}</h3>
+                  <Badge variant="outline">{inactiveMeals.length}</Badge>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {inactiveMeals.map((meal) => (
+                    <Card key={meal.id} className="overflow-hidden border border-border/70 shadow-sm opacity-80">
+                      {meal.image_url ? <div className="aspect-[16/10] overflow-hidden bg-muted"><img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" /></div> : null}
+                      <CardContent className="space-y-2 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold">{getLocalizedField(meal, 'name')}</h3>
+                            <p className="text-sm font-bold text-primary">{t('currency')}{meal.price}</p>
+                            {meal.menu_category ? <p className="mt-1 text-xs text-muted-foreground">{meal.menu_category}</p> : null}
                           </div>
-                          {childMeals.length > 0 ? <div className="space-y-2 border-t border-border/60 pt-2">{childMeals.map((meal) => <div key={meal.id} className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2"><div className="min-w-0"><p className="truncate text-sm font-medium">{getLocalizedField(meal, 'name')}</p><p className="text-xs text-muted-foreground">{t('currency')}{meal.price}</p></div><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMealForm(meal)}><Pencil className="h-3.5 w-3.5" /></Button></div>)}</div> : null}
-                        </div>;
-                      })}</div> : null}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              {categories.length === 0 ? <Card className="border-dashed shadow-none"><CardContent className="py-10 text-center text-muted-foreground">{t('noCategoriesYet')}</CardContent></Card> : null}
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMealForm(meal)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingMealId(meal.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </div>
+                        {getLocalizedField(meal, 'description') ? <p className="line-clamp-2 text-xs text-muted-foreground">{getLocalizedField(meal, 'description')}</p> : null}
+                        <DietaryBadges tags={meal.dietary_tags} />
+                        <Badge variant="secondary" className="text-xs">{t('inactive')}</Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </div>
-            {showCategoryForm ? <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-2xl"><div className="mb-4"><h3 className="text-lg font-bold">{editingCategory ? t('editCategory') : t('addCategory')}</h3></div><form onSubmit={(event) => { event.preventDefault(); saveCategory.mutate(categoryForm); }} className="space-y-4"><div className="grid grid-cols-2 gap-3"><div><Label>{t('icon')}</Label><Input value={categoryForm.icon} onChange={(event) => setCategoryForm({ ...categoryForm, icon: event.target.value })} placeholder="🍹" /></div><div><Label>{t('sortOrder')}</Label><Input value={categoryForm.sort_order} onChange={(event) => setCategoryForm({ ...categoryForm, sort_order: event.target.value })} type="number" /></div></div><div><Label>{t('parentCategory')}</Label><select value={categoryForm.parent_id} onChange={(event) => setCategoryForm({ ...categoryForm, parent_id: event.target.value })} className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="root">{t('topLevel')}</option>{parentCategories.filter((category) => category.id !== editingCategory?.id).map((category) => <option key={category.id} value={category.id}>{getLocalizedField(category, 'name')}</option>)}</select></div><div><Label>{t('categoryName')} (EN)</Label><Input value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} required /></div><div><Label>{t('categoryName')} (HE)</Label><Input value={categoryForm.name_he} onChange={(event) => setCategoryForm({ ...categoryForm, name_he: event.target.value })} dir="rtl" /></div><div><Label>{t('categoryName')} (AR)</Label><Input value={categoryForm.name_ar} onChange={(event) => setCategoryForm({ ...categoryForm, name_ar: event.target.value })} dir="rtl" /></div><div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => { setShowCategoryForm(false); setEditingCategory(null); }}>{t('cancel')}</Button><Button type="submit" disabled={saveCategory.isPending}>{saveCategory.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}{t('save')}</Button></div></form></div></div> : null}
           </TabsContent>
 
           <TabsContent value="events">
@@ -361,7 +475,7 @@ export default function RestaurantEditor() {
           <TabsContent value="info">
             {infoForm ? <div className="max-w-2xl space-y-5">
               <h2 className="text-lg font-bold">{t('restaurantInfo')}</h2>
-              <div><Label>{t('coverImage')}</Label><ImageUpload value={infoForm.cover_image} onChange={(value) => setInfoForm({ ...infoForm, cover_image: value })} /></div>
+              <div><Label>{t('coverImage')}</Label><ImageUpload value={infoForm.cover_image} onChange={(value) => setInfoForm({ ...infoForm, cover_image: value })} restaurantId={restaurant.id} entityType="restaurant-covers" /></div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div><Label>{t('description')} (EN)</Label><Textarea value={infoForm.description} onChange={(event) => setInfoForm({ ...infoForm, description: event.target.value })} rows={2} /></div>
                 <div><Label>{t('description')} (HE)</Label><Textarea value={infoForm.description_he} onChange={(event) => setInfoForm({ ...infoForm, description_he: event.target.value })} dir="rtl" rows={2} /></div>
@@ -377,6 +491,8 @@ export default function RestaurantEditor() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {showMealForm ? <MealForm meal={editingMeal} restaurantId={restaurant.id} categories={categories} initialCategory={initialMealCategory} onClose={closeMealForm} /> : null}
 
       <AlertDialog open={!!deletingMealId} onOpenChange={() => setDeletingMealId(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('delete')}?</AlertDialogTitle><AlertDialogDescription>{t('cannotUndo')}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t('cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => deleteMeal.mutate(deletingMealId)} className="bg-destructive text-destructive-foreground">{t('delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={!!deletingEventId} onOpenChange={() => setDeletingEventId(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('delete')}?</AlertDialogTitle><AlertDialogDescription>{t('cannotUndo')}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t('cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => deleteEvent.mutate(deletingEventId)} className="bg-destructive text-destructive-foreground">{t('delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

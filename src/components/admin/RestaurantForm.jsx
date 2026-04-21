@@ -92,11 +92,11 @@ export default function RestaurantForm({ restaurant, onClose }) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <Label>Restaurant Logo</Label>
-              <ImageUpload value={form.logo_url} onChange={(value) => handleChange('logo_url', value)} />
+              <ImageUpload value={form.logo_url} onChange={(value) => handleChange('logo_url', value)} restaurantId={restaurant?.id || form.name || 'shared'} entityType="restaurant-logos" />
             </div>
             <div>
               <Label>{t('coverImage')}</Label>
-              <ImageUpload value={form.cover_image} onChange={(value) => handleChange('cover_image', value)} />
+              <ImageUpload value={form.cover_image} onChange={(value) => handleChange('cover_image', value)} restaurantId={restaurant?.id || form.name || 'shared'} entityType="restaurant-covers" />
             </div>
           </div>
 

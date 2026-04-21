@@ -113,7 +113,7 @@ export default function Home() {
   return (
     <div className="py-6 space-y-6">
       <Seo
-        title="Discover Restaurants and Menus"
+        title={null}
         description={homeDescription}
         canonical={toAbsoluteUrl('/')}
         image={PUTT_LOGO_URL}

@@ -1,8 +1,11 @@
+import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
+
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 900 * 1024;
 const MAX_IMAGE_WIDTH = 1600;
 const MAX_IMAGE_HEIGHT = 1600;
+const STORAGE_BUCKET = 'putt-assets';
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -59,6 +62,56 @@ export async function prepareImageForUpload(file) {
   }
 
   return dataUrl;
+}
+
+function sanitizePathPart(value) {
+  return String(value || 'shared')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'shared';
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, base64] = dataUrl.split(',');
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mimeType = mimeMatch?.[1] || 'image/jpeg';
+  const binary = atob(base64 || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+export async function uploadImageToStorage(file, options = {}) {
+  const processedDataUrl = await prepareImageForUpload(file);
+
+  if (!isSupabaseConfigured || !supabase) {
+    return processedDataUrl;
+  }
+
+  const restaurantFolder = sanitizePathPart(options.restaurantId || 'shared');
+  const entityFolder = sanitizePathPart(options.entityType || 'uploads');
+  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+  const filePath = `${restaurantFolder}/${entityFolder}/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(filePath, dataUrlToBlob(processedDataUrl), {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || 'image/jpeg',
+    });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to upload image to storage.');
+  }
+
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+  return data?.publicUrl || processedDataUrl;
 }
 
 export const imageUploadRules = {

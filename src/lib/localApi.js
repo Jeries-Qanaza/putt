@@ -379,13 +379,15 @@ const serializeMealPayload = (payload) => ({
   menu_category_ar: payload.menu_category_ar ?? '',
   sort_order: payload.sort_order ?? 0,
   dietary_tags: payload.dietary_tags ?? [],
+  status: payload.status ?? payload.is_available ?? true,
   is_available: payload.is_available ?? payload.status ?? true,
   is_featured: payload.is_featured ?? false,
 });
 
 const serializeCategoryPayload = (payload) => ({
-  ...payload,
   name_en: payload.name ?? payload.name_en ?? '',
+  name_he: payload.name_he ?? '',
+  name_ar: payload.name_ar ?? '',
   restaurant_id: payload.restaurant_id ?? null,
   parent_id: payload.parent_id ?? null,
   sort_order: payload.sort_order ?? 0,
@@ -556,6 +558,8 @@ const runSupabase = async (entityName, callback, options = {}) => {
   }
 };
 
+const shouldUseLocalState = () => !isSupabaseConfigured;
+
 const createEntityApi = (entityName) => ({
   async list(sortBy) {
     const remoteData = await runSupabase(entityName, async (table) => {
@@ -575,6 +579,10 @@ const createEntityApi = (entityName) => ({
 
     if (remoteData) {
       return remoteData;
+    }
+
+    if (!shouldUseLocalState()) {
+      return [];
     }
 
     return clone(sortItems(readCollection(entityName), sortBy));
@@ -604,6 +612,10 @@ const createEntityApi = (entityName) => ({
       return remoteData;
     }
 
+    if (!shouldUseLocalState()) {
+      return [];
+    }
+
     const filtered = readCollection(entityName).filter((item) => matches(item, criteria));
     return clone(sortItems(filtered, sortBy));
   },
@@ -630,6 +642,10 @@ const createEntityApi = (entityName) => ({
 
     if (remoteData) {
       return remoteData;
+    }
+
+    if (!shouldUseLocalState()) {
+      throw new Error(`${entityName} could not be created in Supabase.`);
     }
 
     const now = new Date().toISOString();
@@ -672,6 +688,10 @@ const createEntityApi = (entityName) => ({
       return remoteData;
     }
 
+    if (!shouldUseLocalState()) {
+      throw new Error(`${entityName} "${id}" could not be updated in Supabase.`);
+    }
+
     const now = new Date().toISOString();
     let updatedRecord = null;
 
@@ -699,6 +719,10 @@ const createEntityApi = (entityName) => ({
 
     if (remoteData) {
       return remoteData;
+    }
+
+    if (!shouldUseLocalState()) {
+      throw new Error(`${entityName} "${id}" could not be deleted in Supabase.`);
     }
 
     let deletedRecord = null;

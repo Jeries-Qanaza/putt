@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 import ScheduleDisplay from '@/components/shared/ScheduleDisplay';
 import MealCard from '@/components/customer/MealCard';
 import MealDetailSheet from '@/components/customer/MealDetailSheet';
-import MenuCategoryGrid, { getCategoryPhoto } from '@/components/customer/MenuCategoryGrid';
+import MenuCategoryGrid from '@/components/customer/MenuCategoryGrid';
 import Seo from '@/components/shared/Seo';
 import { toSlug } from '@/lib/slugify';
 import PageNotFound from '@/lib/PageNotFound';
@@ -122,7 +122,7 @@ export default function RestaurantDetail() {
     if (!restaurantId) return;
     setShowWelcome(true);
     setWelcomeMinElapsed(false);
-    setCategoryAssetsReady(false);
+    setCategoryAssetsReady(true);
 
     const timer = window.setTimeout(() => setWelcomeMinElapsed(true), 1200);
     return () => window.clearTimeout(timer);
@@ -140,7 +140,7 @@ export default function RestaurantDetail() {
     queryKey: ['meals', restaurantId],
     queryFn: async () => {
       const results = await localApi.entities.Meal.filter({ restaurant_id: restaurantId }, 'sort_order');
-      return results.filter((meal) => (meal.status ?? meal.is_available ?? true) !== false);
+      return results.filter((meal) => (meal.is_available ?? meal.status ?? true) !== false);
     },
     enabled: !!restaurantId && categoriesReady,
   });
@@ -179,157 +179,59 @@ export default function RestaurantDetail() {
 
   const topLevelCategories = useMemo(() => categoryChildrenByParentId.root || [], [categoryChildrenByParentId]);
 
-  useEffect(() => {
-    if (!showWelcome || !restaurantId || !categoriesReady) return;
+  const rootCategories = useMemo(
+    () =>
+      topLevelCategories
+        .slice()
+        .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER)),
+    [topLevelCategories]
+  );
 
-    const labelsToPreload = (topLevelCategories.length > 0 ? topLevelCategories : categories)
-      .map((category) => getLocalizedField(category, 'name'))
-      .filter(Boolean);
+  const selectedCategory = useMemo(
+    () => (selectedCategoryKey ? categoryMetaById[selectedCategoryKey] || null : null),
+    [selectedCategoryKey, categoryMetaById]
+  );
 
-    if (labelsToPreload.length === 0) {
-      setCategoryAssetsReady(true);
-      return;
-    }
+  const selectedChildCategories = useMemo(() => {
+    if (!selectedCategoryKey) return [];
+    return (categoryChildrenByParentId[selectedCategoryKey] || [])
+      .slice()
+      .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER));
+  }, [categoryChildrenByParentId, selectedCategoryKey]);
 
-    let active = true;
-
-    Promise.allSettled(
-      labelsToPreload.map((label) => {
-        return new Promise((resolve) => {
-          const image = new Image();
-          image.onload = resolve;
-          image.onerror = resolve;
-          image.src = getCategoryPhoto(label);
-        });
-      })
-    ).then(() => {
-      if (active) setCategoryAssetsReady(true);
+  const selectedCategoryMeals = useMemo(() => {
+    if (!selectedCategory) return [];
+    const normalizedName = normalizeCategoryKey(selectedCategory.name || selectedCategory.name_en);
+    return meals.filter((meal) => {
+      if (meal.category_id && meal.category_id === selectedCategory.id) return true;
+      if (!meal.category_id && normalizedName && normalizeCategoryKey(meal.menu_category) === normalizedName) return true;
+      return false;
     });
+  }, [meals, selectedCategory]);
 
-    return () => {
-      active = false;
-    };
-  }, [showWelcome, restaurantId, categoriesReady, topLevelCategories, categories, getLocalizedField]);
+  const fallbackMealSections = useMemo(() => {
+    if (categories.length > 0) return [];
 
-  const categorySections = useMemo(() => {
-    const mealsByMenuCategory = meals.reduce((acc, meal) => {
-      const category = meal.category_id ? categoryMetaById[meal.category_id] : null;
-      const rawKey = category?.name || meal.menu_category || t('menu');
-      const keys = [category?.id, normalizeCategoryKey(rawKey)].filter(Boolean);
-
-      keys.forEach((key) => {
-        if (!acc[key]) {
-          acc[key] = {
-            label: category ? getLocalizedField(category, 'name') : rawKey,
-            meals: [],
-          };
-        }
-        acc[key].meals.push(meal);
-      });
-
+    const groupedMeals = meals.reduce((acc, meal) => {
+      const key = normalizeCategoryKey(meal.menu_category || t('menu'));
+      if (!acc[key]) {
+        acc[key] = {
+          key,
+          label: meal.menu_category || t('menu'),
+          meals: [],
+        };
+      }
+      acc[key].meals.push(meal);
       return acc;
     }, {});
 
-    const sections = [];
-    const usedMealKeys = new Set();
-
-    topLevelCategories
-      .slice()
-      .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER))
-      .forEach((category) => {
-        const children = (categoryChildrenByParentId[category.id] || [])
-          .slice()
-          .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER));
-
-        const childGroups = children
-          .map((child) => {
-            const childKey = child.id || normalizeCategoryKey(child.name || child.name_en);
-            const childNameKey = normalizeCategoryKey(child.name || child.name_en);
-            const match = mealsByMenuCategory[childKey] || mealsByMenuCategory[childNameKey];
-            if (!match) return null;
-            usedMealKeys.add(childKey);
-            usedMealKeys.add(childNameKey);
-            return {
-              key: childKey,
-              label: getLocalizedField(child, 'name'),
-              meals: match.meals,
-            };
-          })
-          .filter(Boolean);
-
-        const parentKey = category.id || normalizeCategoryKey(category.name || category.name_en);
-        const parentNameKey = normalizeCategoryKey(category.name || category.name_en);
-        const parentMatch = mealsByMenuCategory[parentKey] || mealsByMenuCategory[parentNameKey];
-        if (parentMatch) {
-          usedMealKeys.add(parentKey);
-          usedMealKeys.add(parentNameKey);
-        }
-
-        const allMeals = [
-          ...(parentMatch?.meals || []),
-          ...childGroups.flatMap((group) => group.meals),
-        ];
-
-        if (allMeals.length === 0) return;
-
-        const parentGroup =
-          parentMatch?.meals?.length
-            ? [
-                {
-                  key: parentKey,
-                  label: getLocalizedField(category, 'name'),
-                  meals: parentMatch.meals,
-                },
-              ]
-            : [];
-
-        sections.push({
-          key: category.id,
-          label: getLocalizedField(category, 'name'),
-          groups: childGroups.length > 0
-            ? [...parentGroup, ...childGroups]
-            : [
-                {
-                  key: parentKey,
-                  label: getLocalizedField(category, 'name'),
-                  meals: allMeals,
-                },
-              ],
-          meals: allMeals,
-        });
-      });
-
-    Object.entries(mealsByMenuCategory)
-      .filter(([key]) => !usedMealKeys.has(key))
-      .sort((left, right) => {
-        const leftOrder = (categoryMetaById[left[0]] || categoryMetaByName[left[0]])?.sort_order ?? Number.MAX_SAFE_INTEGER;
-        const rightOrder = (categoryMetaById[right[0]] || categoryMetaByName[right[0]])?.sort_order ?? Number.MAX_SAFE_INTEGER;
-        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-        return left[1].label.localeCompare(right[1].label);
-      })
-      .forEach(([key, value]) => {
-        const category = categoryMetaById[key] || categoryMetaByName[key];
-        sections.push({
-          key,
-          label: category ? getLocalizedField(category, 'name') : value.label,
-          groups: [
-            {
-              key,
-              label: category ? getLocalizedField(category, 'name') : value.label,
-              meals: value.meals,
-            },
-          ],
-          meals: value.meals,
-        });
-      });
-
-    return sections;
-  }, [meals, t, topLevelCategories, categoryChildrenByParentId, getLocalizedField, categoryMetaByName, categoryMetaById]);
+    return Object.values(groupedMeals).sort((left, right) => left.label.localeCompare(right.label));
+  }, [categories.length, meals, t]);
 
   useEffect(() => {
-    if (!selectedCategoryKey || categorySections.some((section) => section.key === selectedCategoryKey)) return;
+    if (!selectedCategoryKey || selectedCategory) return;
     setSelectedCategoryKey(null);
-  }, [selectedCategoryKey, categorySections]);
+  }, [selectedCategoryKey, selectedCategory]);
 
   useEffect(() => {
     if (!showWelcome || !restaurantId) return;
@@ -339,7 +241,6 @@ export default function RestaurantDetail() {
     return () => window.clearTimeout(timer);
   }, [showWelcome, restaurantId, welcomeMinElapsed, categoryAssetsReady]);
 
-  const selectedSection = categorySections.find((section) => section.key === selectedCategoryKey);
   const openState = useMemo(() => getRestaurantOpenState(restaurant?.schedule), [restaurant?.schedule]);
   const canonicalUrl = restaurant ? toAbsoluteUrl(`/${toSlug(restaurant.name || restaurant.name_en || restaurant.id)}`) : '';
   const seoDescription = desc || `${name} on Putt. Browse the menu, opening hours, contact details, and restaurant information.`;
@@ -372,15 +273,17 @@ export default function RestaurantDetail() {
         hasMenu: {
           '@type': 'Menu',
           name: `${name} Menu`,
-          hasMenuSection: categorySections.map((section) => ({
+          hasMenuSection: rootCategories.map((section) => ({
             '@type': 'MenuSection',
-            name: section.label,
+            name: getLocalizedField(section, 'name'),
             hasMenuSection:
-              section.groups.length > 1
-                ? section.groups.map((group) => ({
+              (categoryChildrenByParentId[section.id] || []).length > 0
+                ? (categoryChildrenByParentId[section.id] || []).map((group) => ({
                     '@type': 'MenuSection',
-                    name: group.label,
-                    hasMenuItem: group.meals.map((meal) => ({
+                    name: getLocalizedField(group, 'name'),
+                    hasMenuItem: meals
+                      .filter((meal) => meal.category_id === group.id)
+                      .map((meal) => ({
                       '@type': 'MenuItem',
                       name: getLocalizedField(meal, 'name'),
                       description: getLocalizedField(meal, 'description') || undefined,
@@ -398,8 +301,9 @@ export default function RestaurantDetail() {
                   }))
                 : undefined,
             hasMenuItem:
-              section.groups.length === 1
-                ? section.groups[0].meals.map((meal) => ({
+              meals
+                .filter((meal) => meal.category_id === section.id)
+                .map((meal) => ({
                     '@type': 'MenuItem',
                     name: getLocalizedField(meal, 'name'),
                     description: getLocalizedField(meal, 'description') || undefined,
@@ -413,8 +317,7 @@ export default function RestaurantDetail() {
                           ? 'https://schema.org/OutOfStock'
                           : 'https://schema.org/InStock',
                     },
-                  }))
-                : undefined,
+                  })),
           })),
         },
       }
@@ -441,7 +344,7 @@ export default function RestaurantDetail() {
     : null;
 
   useEffect(() => {
-    if (!selectedSection) return undefined;
+    if (!selectedCategory) return undefined;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -449,7 +352,7 @@ export default function RestaurantDetail() {
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [selectedSection]);
+  }, [selectedCategory]);
 
   useEffect(() => {
     if (!selectedCategoryKey) return;
@@ -474,7 +377,7 @@ export default function RestaurantDetail() {
   };
 
   const handleCategoryTouchEnd = (event) => {
-    if (!selectedSection || sheetMeals || !swipeStartRef.current) return;
+    if (!selectedCategory || sheetMeals || !swipeStartRef.current) return;
 
     const touch = event.changedTouches[0];
     if (!touch) return;
@@ -486,7 +389,7 @@ export default function RestaurantDetail() {
     if (Math.abs(deltaY) > 60) return;
 
     if (deltaX < -80) {
-      setSelectedCategoryKey(null);
+      setSelectedCategoryKey(selectedCategory?.parent_id || null);
     }
   };
 
@@ -544,7 +447,7 @@ export default function RestaurantDetail() {
         ) : null}
       </AnimatePresence>
 
-      {!selectedSection ? (
+      {!selectedCategory ? (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <div className="hidden items-center gap-6 rounded-2xl border border-border/50 bg-card p-6 shadow-sm md:flex">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-muted">
@@ -588,7 +491,7 @@ export default function RestaurantDetail() {
       ) : null}
 
       <AnimatePresence>
-        {showInfo && hasInfo && !selectedSection ? (
+        {showInfo && hasInfo && !selectedCategory ? (
           <motion.div
             ref={infoPanelRef}
             initial={{ opacity: 0, height: 0 }}
@@ -655,28 +558,29 @@ export default function RestaurantDetail() {
       </AnimatePresence>
 
       <main id="menu-content" className="space-y-6">
-        {!selectedSection ? (
+        {!selectedCategory ? (
           <>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-foreground">{t('categories')}</h2>
-              {!categoriesLoading ? <span className="text-sm text-muted-foreground">{categorySections.length} {t('sections')}</span> : null}
+              {!categoriesLoading ? <span className="text-sm text-muted-foreground">{(rootCategories.length || fallbackMealSections.length)} {t('sections')}</span> : null}
             </div>
 
             {categoriesLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : categorySections.length === 0 ? (
+            ) : rootCategories.length === 0 && fallbackMealSections.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <span className="mb-2 block text-3xl">*</span>
                 <p>{t('noMeals')}</p>
               </div>
             ) : (
               <MenuCategoryGrid
-                categories={categorySections.map((section) => section.label)}
+                categories={(rootCategories.length > 0 ? rootCategories : fallbackMealSections).map((section) => getLocalizedField(section, 'name') || section.label)}
                 onSelect={(label) => {
-                  const match = categorySections.find((section) => section.label === label);
-                  if (match) setSelectedCategoryKey(match.key);
+                  const source = rootCategories.length > 0 ? rootCategories : fallbackMealSections;
+                  const match = source.find((section) => (getLocalizedField(section, 'name') || section.label) === label);
+                  if (match) setSelectedCategoryKey(match.id || match.key);
                 }}
               />
             )}
@@ -689,7 +593,7 @@ export default function RestaurantDetail() {
           >
             <div className="sticky top-0 z-20 shrink-0 space-y-2 border-b border-border/50 bg-card/95 px-4 py-3 backdrop-blur md:px-5">
               <button
-                onClick={() => setSelectedCategoryKey(null)}
+                onClick={() => setSelectedCategoryKey(selectedCategory.parent_id || null)}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -697,46 +601,49 @@ export default function RestaurantDetail() {
               </button>
 
               <div>
-                <h2 className="text-2xl font-bold text-foreground">{selectedSection.label}</h2>
-                <p className="text-sm text-muted-foreground">{selectedSection.meals.length} {t('items')}</p>
+                <h2 className="text-2xl font-bold text-foreground">{getLocalizedField(selectedCategory, 'name')}</h2>
+                <p className="text-sm text-muted-foreground">{selectedCategoryMeals.length} {t('items')}</p>
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 md:px-5 md:pb-5 md:pt-5">
               <div className="space-y-5">
-                {selectedSection.groups.length > 1 ? (
-                  <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/50 bg-background p-3 md:grid-cols-3">
-                    {selectedSection.groups.map((group) => (
-                      <div key={`summary-${group.key}`} className="rounded-xl border border-border/50 bg-card px-3 py-3">
-                        <p className="truncate text-sm font-semibold text-foreground">{group.label}</p>
-                        <p className="text-xs text-muted-foreground">{group.meals.length} {t('items')}</p>
-                      </div>
-                    ))}
+                {selectedChildCategories.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-foreground">{t('categories')}</h3>
+                      <span className="text-xs text-muted-foreground">{selectedChildCategories.length} {t('sections')}</span>
+                    </div>
+                    <MenuCategoryGrid
+                      categories={selectedChildCategories.map((category) => getLocalizedField(category, 'name'))}
+                      onSelect={(label) => {
+                        const match = selectedChildCategories.find((category) => getLocalizedField(category, 'name') === label);
+                        if (match) setSelectedCategoryKey(match.id);
+                      }}
+                    />
                   </div>
                 ) : null}
 
-                {selectedSection.groups.map((group) => (
-                  <section key={group.key} className="space-y-3">
-                    {selectedSection.groups.length > 1 ? (
-                      <div className="space-y-1">
-                        <h3 className="text-lg font-semibold text-foreground">{group.label}</h3>
-                        <p className="text-xs text-muted-foreground">{group.meals.length} {t('items')}</p>
-                      </div>
-                    ) : null}
+                {selectedCategoryMeals.length > 0 ? (
+                  <section className="space-y-3">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-foreground">{t('menu')}</h3>
+                      <p className="text-xs text-muted-foreground">{selectedCategoryMeals.length} {t('items')}</p>
+                    </div>
 
                     <div className="space-y-3">
-                      {group.meals.map((meal, index) => (
+                      {selectedCategoryMeals.map((meal, index) => (
                         <MealCard
                           key={meal.id}
                           meal={meal}
                           index={index}
-                          onClick={() => openSheet(group.meals, index)}
+                          onClick={() => openSheet(selectedCategoryMeals, index)}
                           fallbackImage={logoUrl}
                         />
                       ))}
                     </div>
                   </section>
-                ))}
+                ) : null}
               </div>
             </div>
           </div>

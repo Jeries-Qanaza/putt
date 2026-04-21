@@ -135,7 +135,12 @@ export default function MealForm({ meal, restaurantId, categories = [], initialC
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <ImageUpload value={form.image_url} onChange={(value) => setForm({ ...form, image_url: value })} />
+          <ImageUpload
+            value={form.image_url}
+            onChange={(value) => setForm({ ...form, image_url: value })}
+            restaurantId={restaurantId}
+            entityType="meals"
+          />
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>

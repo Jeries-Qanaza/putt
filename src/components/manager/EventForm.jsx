@@ -57,7 +57,12 @@ export default function EventForm({ event, restaurantId, onClose }) {
           <DialogTitle>{isEditing ? t('editEvent') : t('addEvent')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <ImageUpload value={form.image_url} onChange={(v) => setForm({ ...form, image_url: v })} />
+          <ImageUpload
+            value={form.image_url}
+            onChange={(v) => setForm({ ...form, image_url: v })}
+            restaurantId={restaurantId}
+            entityType="events"
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div><Label>{t('eventTitle')} (EN)</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></div>
