@@ -23,6 +23,7 @@ import Seo from '@/components/shared/Seo';
 import MealForm from '@/components/manager/MealForm';
 import EventForm from '@/components/manager/EventForm';
 import EditorLogin from './EditorLogin';
+import { uploadPreparedImageToStorage } from '@/lib/imageUpload';
 
 export default function RestaurantEditor() {
   const { slug } = useParams();
@@ -62,18 +63,39 @@ export default function RestaurantEditor() {
   useEffect(() => {
     if (!restaurant || !isSupabaseConfigured) return undefined;
     const expectedEditorId = restaurant.editor_id || '';
+    const expectedEditorEmail = (restaurant.editor_email || restaurant.editor_username || '').trim().toLowerCase();
     const syncAuthState = async () => {
       const { data } = await supabase.auth.getSession();
-      setAuthenticated(Boolean(expectedEditorId && data.session?.user?.id === expectedEditorId));
+      const sessionUserId = data.session?.user?.id || '';
+      const sessionUserEmail = (data.session?.user?.email || '').trim().toLowerCase();
+      setAuthenticated(
+        Boolean(
+          data.session && (
+            (expectedEditorId && sessionUserId === expectedEditorId) ||
+            (expectedEditorEmail && sessionUserEmail === expectedEditorEmail)
+          )
+        )
+      );
     };
     syncAuthState();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthenticated(Boolean(expectedEditorId && session?.user?.id === expectedEditorId));
+      const sessionUserId = session?.user?.id || '';
+      const sessionUserEmail = (session?.user?.email || '').trim().toLowerCase();
+      setAuthenticated(
+        Boolean(
+          session && (
+            (expectedEditorId && sessionUserId === expectedEditorId) ||
+            (expectedEditorEmail && sessionUserEmail === expectedEditorEmail)
+          )
+        )
+      );
     });
     return () => subscription.unsubscribe();
   }, [restaurant]);
 
-  const isAuthed = authenticated || (!isSupabaseConfigured && restaurant && sessionStorage.getItem(`editor_auth_${restaurant.id}`) === 'true');
+  const isAuthed = Boolean(
+    authenticated || (restaurant && sessionStorage.getItem(`editor_auth_${restaurant.id}`) === 'true')
+  );
   const restaurantLogo = restaurant?.logo_url || restaurant?.cover_image;
 
   useEffect(() => {
@@ -91,7 +113,15 @@ export default function RestaurantEditor() {
   }, [restaurant, infoForm]);
 
   const updateRestaurant = useMutation({
-    mutationFn: (data) => localApi.entities.Restaurant.update(restaurant.id, data),
+    mutationFn: (data) => Promise.resolve().then(async () => {
+      const payload = { ...data };
+      payload.cover_image = await uploadPreparedImageToStorage(payload.cover_image, {
+        restaurantName: restaurant.name || restaurant.name_en || 'shared',
+        entityType: 'restaurant-covers',
+        fixedFileName: 'cover',
+      });
+      return localApi.entities.Restaurant.update(restaurant.id, payload);
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['editor-restaurant'] });
       toast({ title: t('saved') });
@@ -448,7 +478,7 @@ export default function RestaurantEditor() {
               <h2 className="text-lg font-bold">{t('events')}</h2>
               <Button onClick={() => { setEditingEvent(null); setShowEventForm(true); }} className="gap-2"><Plus className="h-4 w-4" /> {t('addEvent')}</Button>
             </div>
-            {showEventForm ? <EventForm event={editingEvent} restaurantId={restaurant.id} onClose={() => { setShowEventForm(false); setEditingEvent(null); queryClient.invalidateQueries({ queryKey: ['editor-events'] }); }} /> : null}
+            {showEventForm ? <EventForm event={editingEvent} restaurantId={restaurant.id} restaurantName={restaurant.name || restaurant.name_en || ''} onClose={() => { setShowEventForm(false); setEditingEvent(null); queryClient.invalidateQueries({ queryKey: ['editor-events'] }); }} /> : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {events.map((event) => (
                 <Card key={event.id} className="overflow-hidden border-0 shadow-sm">
@@ -492,7 +522,7 @@ export default function RestaurantEditor() {
         </Tabs>
       </main>
 
-      {showMealForm ? <MealForm meal={editingMeal} restaurantId={restaurant.id} categories={categories} initialCategory={initialMealCategory} onClose={closeMealForm} /> : null}
+      {showMealForm ? <MealForm meal={editingMeal} restaurantId={restaurant.id} restaurantName={restaurant.name || restaurant.name_en || ''} categories={categories} initialCategory={initialMealCategory} onClose={closeMealForm} /> : null}
 
       <AlertDialog open={!!deletingMealId} onOpenChange={() => setDeletingMealId(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('delete')}?</AlertDialogTitle><AlertDialogDescription>{t('cannotUndo')}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t('cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => deleteMeal.mutate(deletingMealId)} className="bg-destructive text-destructive-foreground">{t('delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={!!deletingEventId} onOpenChange={() => setDeletingEventId(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('delete')}?</AlertDialogTitle><AlertDialogDescription>{t('cannotUndo')}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t('cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => deleteEvent.mutate(deletingEventId)} className="bg-destructive text-destructive-foreground">{t('delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

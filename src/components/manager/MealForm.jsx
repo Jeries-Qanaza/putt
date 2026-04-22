@@ -18,8 +18,9 @@ import {
 } from '@/components/ui/dialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { ALL_DIETARY_TAGS, dietaryIcons } from '@/lib/dietaryIcons';
+import { uploadPreparedImageToStorage } from '@/lib/imageUpload';
 
-export default function MealForm({ meal, restaurantId, categories = [], initialCategory = '', onClose }) {
+export default function MealForm({ meal, restaurantId, restaurantName = '', categories = [], initialCategory = '', onClose }) {
   const { t, getLocalizedField } = useI18n();
   const queryClient = useQueryClient();
   const isEditing = !!meal;
@@ -30,7 +31,6 @@ export default function MealForm({ meal, restaurantId, categories = [], initialC
     }, {}),
     [categories]
   );
-
   const resolveInitialCategoryId = () => {
     if (meal?.category_id && categoryMap[meal.category_id]) return meal.category_id;
 
@@ -89,23 +89,31 @@ export default function MealForm({ meal, restaurantId, categories = [], initialC
 
   const mutation = useMutation({
     mutationFn: (data) => {
-      const payload = {
-        ...data,
-        is_available: data.status !== false,
-        price: Number(data.price),
-        restaurant_id: restaurantId,
-        category_id: data.category_id || null,
-        menu_category: categoryMap[data.category_id]?.name || '',
-        menu_category_he: categoryMap[data.category_id]?.name_he || '',
-        menu_category_ar: categoryMap[data.category_id]?.name_ar || '',
-        sort_order: Number(data.sort_order || 0),
-      };
+      return Promise.resolve().then(async () => {
+        const payload = {
+          ...data,
+          is_available: data.status !== false,
+          price: Number(data.price),
+          restaurant_id: restaurantId,
+          category_id: data.category_id || null,
+          menu_category: categoryMap[data.category_id]?.name || '',
+          menu_category_he: categoryMap[data.category_id]?.name_he || '',
+          menu_category_ar: categoryMap[data.category_id]?.name_ar || '',
+          sort_order: Number(data.sort_order || 0),
+        };
 
-      if (isEditing) {
-        return localApi.entities.Meal.update(meal.id, payload);
-      }
+        payload.image_url = await uploadPreparedImageToStorage(payload.image_url, {
+          restaurantName: restaurantName || 'shared',
+          entityType: 'meals',
+          fileBaseName: payload.name || 'meal',
+        });
 
-      return localApi.entities.Meal.create(payload);
+        if (isEditing) {
+          return localApi.entities.Meal.update(meal.id, payload);
+        }
+
+        return localApi.entities.Meal.create(payload);
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['editor-meals'] });

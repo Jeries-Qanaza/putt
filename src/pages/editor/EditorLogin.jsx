@@ -35,6 +35,7 @@ export default function EditorLogin({ restaurant, onSuccess }) {
 
   const isLocked = lockedUntil > Date.now();
   const expectedEditorId = restaurant.editor_id || '';
+  const expectedEditorEmail = (restaurant.editor_email || restaurant.editor_username || '').trim().toLowerCase();
 
   useEffect(() => {
     if (!isLocked) return undefined;
@@ -74,23 +75,50 @@ export default function EditorLogin({ restaurant, onSuccess }) {
       const normalizedEmail = email.trim().toLowerCase();
       let isValid = false;
 
-      if (isSupabaseConfigured && expectedEditorId) {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        });
+      try {
+        if (isSupabaseConfigured) {
+          const { data, error: signInError } = await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password,
+          });
 
-        isValid =
-          !signInError &&
-          !!data.session &&
-          (data.user?.id || '') === expectedEditorId;
+          if (signInError) {
+            throw signInError;
+          }
 
-        if (!isValid && data.session) {
-          await supabase.auth.signOut();
+          const signedInUserId = data.user?.id || '';
+          const signedInEmail = (data.user?.email || '').trim().toLowerCase();
+
+          const matchesEditorId = expectedEditorId ? signedInUserId === expectedEditorId : false;
+          const matchesEditorEmail = expectedEditorEmail ? signedInEmail === expectedEditorEmail : false;
+
+          isValid = !!data.session && (matchesEditorId || matchesEditorEmail);
+
+          if (!isValid && data.session) {
+            await supabase.auth.signOut();
+            throw new Error('This account is not assigned to this restaurant editor.');
+          }
+        } else {
+          isValid = normalizedEmail === expectedEditorEmail && password === restaurant.editor_password;
         }
-      } else {
-        const normalizedStoredEmail = (restaurant.editor_email || restaurant.editor_username || '').trim().toLowerCase();
-        isValid = normalizedEmail === normalizedStoredEmail && password === restaurant.editor_password;
+      } catch (submitError) {
+        const nextAttempts = Number(localStorage.getItem(attemptStorageKey) || '0') + 1;
+        localStorage.setItem(attemptStorageKey, String(nextAttempts));
+
+        if (nextAttempts >= 4) {
+          const nextLockedUntil = Date.now() + LOCKOUT_MS;
+          localStorage.setItem(lockedStorageKey, String(nextLockedUntil));
+          setLockedUntil(nextLockedUntil);
+          setError(t('supportLockMessage'));
+        } else {
+          const explicitMessage = submitError?.message?.toLowerCase().includes('assigned to this restaurant')
+            ? submitError.message
+            : `${t('invalidEmailOrPassword')} ${4 - nextAttempts} ${t('attemptsLeft')}.`;
+          setError(explicitMessage);
+        }
+
+        setLoading(false);
+        return;
       }
 
       if (isValid) {

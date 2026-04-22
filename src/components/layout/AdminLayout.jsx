@@ -7,6 +7,7 @@ import { PUTT_LOGO_URL } from '@/lib/branding';
 import { LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Seo from '@/components/shared/Seo';
+import AdminLogin from '@/components/admin/AdminLogin';
 
 const navItems = [
   { path: '/admin', icon: LayoutDashboard, labelKey: 'adminDashboard' },
@@ -15,11 +16,23 @@ const navItems = [
 
 export default function AdminLayout() {
   const { t, dir } = useI18n();
-  const { logout } = useAuth();
+  const { logout, isAuthenticated, isLoadingAuth } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  if (isLoadingAuth) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-800" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AdminLogin />;
+  }
 
   const handleAdminHomeClick = (event) => {
     event.preventDefault();

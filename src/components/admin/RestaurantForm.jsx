@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import SchedulePicker, { getInitialSchedule } from '@/components/shared/SchedulePicker';
+import { uploadPreparedImageToStorage } from '@/lib/imageUpload';
 
 export default function RestaurantForm({ restaurant, onClose }) {
   const { t } = useI18n();
@@ -56,13 +57,21 @@ export default function RestaurantForm({ restaurant, onClose }) {
 
   const mutation = useMutation({
     mutationFn: (data) => {
+      const restaurantFolderName = data.name || restaurant?.name || 'shared';
       const payload = {
         ...data,
         latitude: data.latitude ? Number(data.latitude) : null,
         longitude: data.longitude ? Number(data.longitude) : null,
       };
-      if (isEditing) return localApi.entities.Restaurant.update(restaurant.id, payload);
-      return localApi.entities.Restaurant.create(payload);
+      return Promise.resolve().then(async () => {
+        payload.logo_url = await uploadPreparedImageToStorage(payload.logo_url, {
+          restaurantName: restaurantFolderName,
+          entityType: 'restaurant-logos',
+          fixedFileName: 'logo',
+        });
+        if (isEditing) return localApi.entities.Restaurant.update(restaurant.id, payload);
+        return localApi.entities.Restaurant.create(payload);
+      });
     },
     onSuccess: () => {
       setSubmitError('');
@@ -89,15 +98,9 @@ export default function RestaurantForm({ restaurant, onClose }) {
           <DialogTitle>{isEditing ? t('editRestaurant') : t('addRestaurant')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <Label>Restaurant Logo</Label>
-              <ImageUpload value={form.logo_url} onChange={(value) => handleChange('logo_url', value)} restaurantId={restaurant?.id || form.name || 'shared'} entityType="restaurant-logos" />
-            </div>
-            <div>
-              <Label>{t('coverImage')}</Label>
-              <ImageUpload value={form.cover_image} onChange={(value) => handleChange('cover_image', value)} restaurantId={restaurant?.id || form.name || 'shared'} entityType="restaurant-covers" />
-            </div>
+          <div>
+            <Label>Restaurant Logo</Label>
+            <ImageUpload value={form.logo_url} onChange={(value) => handleChange('logo_url', value)} restaurantId={restaurant?.id || form.name || 'shared'} entityType="restaurant-logos" />
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

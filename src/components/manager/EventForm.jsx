@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { Loader2 } from 'lucide-react';
+import { uploadPreparedImageToStorage } from '@/lib/imageUpload';
 
-export default function EventForm({ event, restaurantId, onClose }) {
+export default function EventForm({ event, restaurantId, restaurantName = '', onClose }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const isEditing = !!event;
@@ -35,9 +36,16 @@ export default function EventForm({ event, restaurantId, onClose }) {
 
   const mutation = useMutation({
     mutationFn: (data) => {
-      const payload = { ...data, restaurant_id: restaurantId };
-      if (isEditing) return localApi.entities.Event.update(event.id, payload);
-      return localApi.entities.Event.create(payload);
+      return Promise.resolve().then(async () => {
+        const payload = { ...data, restaurant_id: restaurantId };
+        payload.image_url = await uploadPreparedImageToStorage(payload.image_url, {
+          restaurantName: restaurantName || 'shared',
+          entityType: 'events',
+          fileBaseName: payload.title || 'event',
+        });
+        if (isEditing) return localApi.entities.Event.update(event.id, payload);
+        return localApi.entities.Event.create(payload);
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['editor-events'] });

@@ -85,33 +85,91 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: mimeType });
 }
 
-export async function uploadImageToStorage(file, options = {}) {
-  const processedDataUrl = await prepareImageForUpload(file);
+function mimeFromDataUrl(dataUrl) {
+  return dataUrl.split(',')[0]?.match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
+}
 
-  if (!isSupabaseConfigured || !supabase) {
-    return processedDataUrl;
+function extensionFromMime(mimeType) {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+function sanitizeRestaurantFolderName(value) {
+  return String(value || 'shared')
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'shared';
+}
+
+function buildStorageUploadError(error, context) {
+  const rawMessage = error?.message || 'Unknown storage error.';
+  const lowerMessage = rawMessage.toLowerCase();
+
+  if (lowerMessage.includes('row-level security')) {
+    return `Storage upload blocked by Supabase policy. Bucket: "${context.bucket}", path: "${context.path}". Create an INSERT policy for storage.objects that allows this user to upload into that bucket/path.`;
   }
 
-  const restaurantFolder = sanitizePathPart(options.restaurantId || 'shared');
+  if (lowerMessage.includes('bucket') && lowerMessage.includes('not found')) {
+    return `Supabase Storage bucket "${context.bucket}" was not found. Create that bucket first, then try again.`;
+  }
+
+  if (lowerMessage.includes('mime') || lowerMessage.includes('type')) {
+    return `Supabase rejected the uploaded file type for "${context.path}". Original error: ${rawMessage}`;
+  }
+
+  if (lowerMessage.includes('jwt') || lowerMessage.includes('permission') || lowerMessage.includes('forbidden')) {
+    return `Supabase denied this upload for "${context.path}". Check that the user is authenticated and has Storage permissions for bucket "${context.bucket}".`;
+  }
+
+  return `Failed to upload image to Supabase Storage. Bucket: "${context.bucket}", path: "${context.path}". Original error: ${rawMessage}`;
+}
+
+export async function uploadImageToStorage(file, options = {}) {
+  const processedDataUrl = await prepareImageForUpload(file);
+  return uploadPreparedImageToStorage(processedDataUrl, options);
+}
+
+export async function uploadPreparedImageToStorage(imageValue, options = {}) {
+  if (!imageValue) return '';
+
+  if (!isSupabaseConfigured || !supabase) {
+    return imageValue;
+  }
+
+  if (!String(imageValue).startsWith('data:image/')) {
+    return imageValue;
+  }
+
+  const restaurantFolder = sanitizeRestaurantFolderName(options.restaurantName || options.restaurantId || 'shared');
   const entityFolder = sanitizePathPart(options.entityType || 'uploads');
-  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
-  const filePath = `${restaurantFolder}/${entityFolder}/${fileName}`;
+  const mimeType = mimeFromDataUrl(imageValue);
+  const extension = extensionFromMime(mimeType);
+  const baseName = sanitizePathPart(options.fileBaseName || '');
+  const fileName = options.fixedFileName
+    ? `${sanitizePathPart(options.fixedFileName)}.${extension}`
+    : `${baseName || Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extension}`;
+  const filePath = entityFolder === 'restaurant-logos'
+    ? `${restaurantFolder}/${fileName}`
+    : `${restaurantFolder}/${entityFolder}/${fileName}`;
+  const uploadContext = { bucket: STORAGE_BUCKET, path: filePath };
 
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(filePath, dataUrlToBlob(processedDataUrl), {
+    .upload(filePath, dataUrlToBlob(imageValue), {
       cacheControl: '3600',
       upsert: false,
-      contentType: file.type || 'image/jpeg',
+      contentType: mimeType,
     });
 
   if (error) {
-    throw new Error(error.message || 'Failed to upload image to storage.');
+    throw new Error(buildStorageUploadError(error, uploadContext));
   }
 
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
-  return data?.publicUrl || processedDataUrl;
+  return data?.publicUrl || imageValue;
 }
 
 export const imageUploadRules = {
