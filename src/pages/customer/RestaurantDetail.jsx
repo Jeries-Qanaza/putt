@@ -76,10 +76,11 @@ export default function RestaurantDetail() {
     queryFn: async () => {
       const all = await localApi.entities.Restaurant.list('name');
       const normalizedSlug = decodeURIComponent(slug);
-      return all.find((item) => {
+      const match = all.find((item) => {
         const nameSlug = toSlug(item.name || item.name_en || item.id);
         return item.id === normalizedSlug || nameSlug === normalizedSlug;
       });
+      return match || null;
     },
   });
 
@@ -158,6 +159,7 @@ export default function RestaurantDetail() {
   });
 
   const name = getLocalizedField(restaurant, 'name');
+  const welcomeName = restaurant?.name || restaurant?.name_en || name;
   const desc = getLocalizedField(restaurant, 'description');
   const logoUrl = restaurant?.logo_url || restaurant?.cover_image;
   const hasInfo = desc || restaurant?.address || restaurant?.schedule || restaurant?.phone;
@@ -463,10 +465,10 @@ export default function RestaurantDetail() {
                 transition={{ duration: 2, ease: 'easeInOut' }}
                 className="mb-6 flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border border-border/50 bg-white shadow-sm"
               >
-                {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-contain p-2" /> : <span className="text-4xl">*</span>}
+                {logoUrl ? <img src={logoUrl} alt={name} className="h-full w-full object-cover" /> : <span className="text-4xl">*</span>}
               </motion.div>
-              <p className="mb-2 text-sm font-medium uppercase tracking-[0.25em] text-muted-foreground">Welcome to</p>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-5xl">{name}</h1>
+              <p className="mb-2 text-sm font-medium tracking-[0.25em] text-muted-foreground">{t('welcomeTo')}</p>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-5xl">{welcomeName}</h1>
             </motion.div>
           </motion.div>
         ) : null}

@@ -54,7 +54,7 @@ function NewsModal({ open, onClose, items, hasItems, getLocalizedField, t }) {
           <div className="max-h-[70dvh] overflow-y-auto p-4">
             {!hasItems ? (
               <div className="py-10 text-center text-muted-foreground">
-                <p className="text-sm">Nothing new today</p>
+                <p className="text-sm">{t('nothingNewToday')}</p>
               </div>
             ) : (
               <div className="space-y-4">
