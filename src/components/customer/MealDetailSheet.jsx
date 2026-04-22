@@ -243,9 +243,11 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
               </button>
             </div>
 
-            <div className="mt-4 text-2xl font-bold text-primary">
-              {t('currency')}
-              {meal.price}
+            <div className="mt-4">
+              <span className="inline-flex max-w-full items-center rounded-full bg-primary/10 px-4 py-2 text-2xl font-bold text-primary ltr" dir="ltr">
+                <span className="pe-2">{t('currency')}</span>
+                <span>{meal.price}</span>
+              </span>
             </div>
             {desc ? <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted-foreground">{desc}</p> : null}
             <div className="mt-4 flex flex-wrap gap-2">
@@ -283,9 +285,9 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
                     <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:hidden">{t('mealLabel')}</div>
                     <h2 className="text-xl font-bold leading-tight text-foreground">{name}</h2>
                   </div>
-                  <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-lg font-bold text-primary md:bg-transparent md:px-0 md:py-0 md:text-2xl">
-                    {t('currency')}
-                    {meal.price}
+                  <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-lg font-bold text-primary ltr" dir="ltr">
+                    <span className="pe-1">{t('currency')}</span>
+                    <span>{meal.price}</span>
                   </span>
                 </div>
                 {desc ? <p className="mt-4 text-sm leading-relaxed text-muted-foreground md:text-base">{desc}</p> : null}

@@ -47,12 +47,12 @@ export default function MealCard({ meal, index = 0, onClick, fallbackImage }) {
         )}
       </div>
 
-      <div className="min-w-0 flex-1 space-y-1 py-3 pr-3">
+      <div className="min-w-0 flex-1 space-y-1 px-3 py-3 md:px-4">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-base font-semibold leading-tight text-foreground">{name}</h3>
-          <span className="shrink-0 whitespace-nowrap ps-3 text-sm font-bold text-primary">
-            {t('currency')}
-            {meal.price}
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary ltr" dir="ltr">
+            <span className="inline-block pe-1">{t('currency')}</span>
+            <span>{meal.price}</span>
           </span>
         </div>
         {desc ? <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">{desc}</p> : null}
