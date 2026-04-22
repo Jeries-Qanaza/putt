@@ -27,7 +27,6 @@ function getDistance(lat1, lon1, lat2, lon2) {
 export default function Home() {
   const { t, getLocalizedField, lang } = useI18n();
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
 
   const { data: restaurants = [], isLoading: loadingRestaurants } = useQuery({
@@ -36,11 +35,6 @@ export default function Home() {
       const results = await localApi.entities.Restaurant.list('name');
       return results.filter((restaurant) => restaurant.is_active !== false);
     },
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => localApi.entities.Category.list('sort_order'),
   });
 
   useEffect(() => {
@@ -77,10 +71,6 @@ export default function Home() {
       );
     }
 
-    if (selectedCategory) {
-      result = result.filter((r) => r.categories?.includes(selectedCategory));
-    }
-
     result.sort((a, b) => {
       if (a.distance != null && b.distance != null) return a.distance - b.distance;
       if (a.distance != null) return -1;
@@ -89,7 +79,7 @@ export default function Home() {
     });
 
     return result;
-  }, [restaurantsWithDistance, search, selectedCategory]);
+  }, [restaurantsWithDistance, search]);
 
   const homeDescription = 'Discover nearby restaurants, explore menus, and check useful dining details across Putt.';
   const homeJsonLd = {
@@ -145,36 +135,6 @@ export default function Home() {
           className="ps-10 h-11 rounded-xl bg-card border-border/50"
         />
       </div>
-
-      {/* Categories slider */}
-      {categories.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${
-              !selectedCategory
-                ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
-                : 'bg-card text-foreground border-border hover:border-primary/50 hover:bg-primary/5'
-            }`}
-          >
-            {t('allCategories')}
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(selectedCategory === cat.name ? null : cat.name)}
-              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${
-                selectedCategory === cat.name
-                  ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30'
-                  : 'bg-card text-foreground border-border hover:border-primary/50 hover:bg-primary/5'
-              }`}
-            >
-              <span>{cat.icon}</span>
-              {getLocalizedField(cat, 'name')}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Results */}
       {loadingRestaurants ? (
