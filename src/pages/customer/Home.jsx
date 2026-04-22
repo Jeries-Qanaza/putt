@@ -29,7 +29,11 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [userLocation, setUserLocation] = useState(null);
 
-  const { data: restaurants = [], isLoading: loadingRestaurants } = useQuery({
+  const {
+    data: restaurants = [],
+    isLoading: loadingRestaurants,
+    error: restaurantsError,
+  } = useQuery({
     queryKey: ['restaurants'],
     queryFn: async () => {
       const results = await localApi.entities.Restaurant.list('name');
@@ -142,6 +146,11 @@ export default function Home() {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="aspect-[16/14] rounded-lg bg-muted animate-pulse" />
           ))}
+        </div>
+      ) : restaurantsError ? (
+        <div className="mx-auto max-w-2xl rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-6 text-center">
+          <p className="text-base font-semibold text-foreground">Could not load restaurants from Supabase.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{restaurantsError.message}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">

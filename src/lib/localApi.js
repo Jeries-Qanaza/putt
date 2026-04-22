@@ -558,7 +558,17 @@ const runSupabase = async (entityName, callback, options = {}) => {
   }
 };
 
-const shouldUseLocalState = () => !isSupabaseConfigured;
+const shouldUseLocalState = () => false;
+
+const buildSupabaseReadError = (entityName) => {
+  if (!isSupabaseConfigured) {
+    return new Error(`${entityName} could not be loaded because Supabase is not configured.`);
+  }
+
+  return new Error(
+    `${entityName} could not be loaded from Supabase. Check the table schema, RLS policies, and API response.`
+  );
+};
 
 const createEntityApi = (entityName) => ({
   async list(sortBy) {
@@ -582,7 +592,7 @@ const createEntityApi = (entityName) => ({
     }
 
     if (!shouldUseLocalState()) {
-      return [];
+      throw buildSupabaseReadError(entityName);
     }
 
     return clone(sortItems(readCollection(entityName), sortBy));
@@ -613,7 +623,7 @@ const createEntityApi = (entityName) => ({
     }
 
     if (!shouldUseLocalState()) {
-      return [];
+      throw buildSupabaseReadError(entityName);
     }
 
     const filtered = readCollection(entityName).filter((item) => matches(item, criteria));

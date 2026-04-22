@@ -67,7 +67,11 @@ export default function RestaurantDetail() {
   const desktopInfoToggleRef = useRef(null);
   const swipeStartRef = useRef(null);
 
-  const { data: restaurant, isLoading: loadingRestaurant } = useQuery({
+  const {
+    data: restaurant,
+    isLoading: loadingRestaurant,
+    error: restaurantError,
+  } = useQuery({
     queryKey: ['restaurant', slug],
     queryFn: async () => {
       const all = await localApi.entities.Restaurant.list('name');
@@ -128,7 +132,11 @@ export default function RestaurantDetail() {
     return () => window.clearTimeout(timer);
   }, [restaurantId]);
 
-  const { data: categories = [], isLoading: loadingCategories } = useQuery({
+  const {
+    data: categories = [],
+    isLoading: loadingCategories,
+    error: categoriesError,
+  } = useQuery({
     queryKey: ['restaurant-categories', restaurantId],
     queryFn: () => localApi.entities.Category.filter({ restaurant_id: restaurantId }, 'sort_order'),
     enabled: !!restaurantId,
@@ -136,7 +144,11 @@ export default function RestaurantDetail() {
 
   const categoriesReady = !!restaurantId && !loadingCategories;
 
-  const { data: meals = [], isLoading: loadingMeals } = useQuery({
+  const {
+    data: meals = [],
+    isLoading: loadingMeals,
+    error: mealsError,
+  } = useQuery({
     queryKey: ['meals', restaurantId],
     queryFn: async () => {
       const results = await localApi.entities.Meal.filter({ restaurant_id: restaurantId }, 'sort_order');
@@ -398,6 +410,19 @@ export default function RestaurantDetail() {
       <div className="space-y-4 py-8" role="status" aria-label="Loading restaurant">
         <div className="h-64 animate-pulse rounded-xl bg-muted" />
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+      </div>
+    );
+  }
+
+  const loadError = restaurantError || categoriesError || mealsError;
+
+  if (loadError) {
+    return (
+      <div className="py-8">
+        <div className="mx-auto max-w-2xl rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-6 text-center">
+          <p className="text-base font-semibold text-foreground">Could not load this restaurant from Supabase.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{loadError.message}</p>
+        </div>
       </div>
     );
   }
