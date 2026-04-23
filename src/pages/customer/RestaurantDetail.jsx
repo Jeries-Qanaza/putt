@@ -51,6 +51,13 @@ function normalizeCategoryKey(value) {
     .replace(/[\s_-]+/g, ' ');
 }
 
+function getCategoryDescription(category, lang, getLocalizedField) {
+  if (!category) return '';
+  if (lang === 'he') return category.description_he || category.desc_he || category.description || category.desc_en || '';
+  if (lang === 'ar') return category.description_ar || category.desc_ar || category.description || category.desc_en || '';
+  return getLocalizedField(category, 'description') || category.desc_en || category.description || '';
+}
+
 export default function RestaurantDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -205,6 +212,7 @@ export default function RestaurantDetail() {
     () => (selectedCategoryKey ? categoryMetaById[selectedCategoryKey] || null : null),
     [selectedCategoryKey, categoryMetaById]
   );
+  const selectedCategoryDescription = getCategoryDescription(selectedCategory, lang, getLocalizedField);
 
   const selectedChildCategories = useMemo(() => {
     if (!selectedCategoryKey) return [];
@@ -629,6 +637,9 @@ export default function RestaurantDetail() {
 
               <div>
                 <h2 className="text-2xl font-bold text-foreground">{getLocalizedField(selectedCategory, 'name')}</h2>
+                {selectedCategoryDescription ? (
+                  <p className="mt-1 text-base font-semibold leading-relaxed text-muted-foreground">{selectedCategoryDescription}</p>
+                ) : null}
                 <p className="text-sm text-muted-foreground">{selectedCategoryMeals.length} {t('items')}</p>
               </div>
             </div>

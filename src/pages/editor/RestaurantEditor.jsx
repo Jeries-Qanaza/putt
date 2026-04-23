@@ -42,7 +42,16 @@ export default function RestaurantEditor() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [deletingCategoryId, setDeletingCategoryId] = useState(null);
   const [currentCategoryId, setCurrentCategoryId] = useState(null);
-  const [categoryForm, setCategoryForm] = useState({ name: '', name_he: '', name_ar: '', sort_order: 0, parent_id: 'root' });
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    name_he: '',
+    name_ar: '',
+    description: '',
+    description_he: '',
+    description_ar: '',
+    sort_order: 0,
+    parent_id: 'root',
+  });
   const [infoForm, setInfoForm] = useState(null);
 
   useEffect(() => {
@@ -194,6 +203,9 @@ export default function RestaurantEditor() {
         name: data.name,
         name_he: data.name_he || '',
         name_ar: data.name_ar || '',
+        description: data.description || '',
+        description_he: data.description_he || '',
+        description_ar: data.description_ar || '',
         sort_order: Number(data.sort_order || 0),
         restaurant_id: restaurant.id,
         parent_id: data.parent_id === 'root' ? null : data.parent_id,
@@ -229,12 +241,18 @@ export default function RestaurantEditor() {
       name: category.name || '',
       name_he: category.name_he || '',
       name_ar: category.name_ar || '',
+      description: category.description || category.desc_en || '',
+      description_he: category.description_he || category.desc_he || '',
+      description_ar: category.description_ar || category.desc_ar || '',
       sort_order: category.sort_order || 0,
       parent_id: category.parent_id || 'root',
     } : {
       name: '',
       name_he: '',
       name_ar: '',
+      description: '',
+      description_he: '',
+      description_ar: '',
       sort_order: visibleCategories.length,
       parent_id: parentId,
     });

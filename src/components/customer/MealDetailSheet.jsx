@@ -16,7 +16,7 @@ function preloadImage(src) {
 }
 
 export default function MealDetailSheet({ meals, initialIndex, onClose, fallbackImage }) {
-  const { t, getLocalizedField } = useI18n();
+  const { t, getLocalizedField, isRTL } = useI18n();
   const [index, setIndex] = useState(initialIndex ?? 0);
   const [direction, setDirection] = useState(0);
   const contentRef = useRef(null);
@@ -65,13 +65,13 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
   useEffect(() => {
     const onKey = (event) => {
       if (event.key === 'Escape') onClose();
-      if (event.key === 'ArrowRight') goNext();
-      if (event.key === 'ArrowLeft') goPrev();
+      if (event.key === 'ArrowRight') (isRTL ? goPrev() : goNext());
+      if (event.key === 'ArrowLeft') (isRTL ? goNext() : goPrev());
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index, meals.length, onClose]);
+  }, [index, isRTL, meals.length, onClose]);
 
   const variants = {
     enter: (dir) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
@@ -300,11 +300,12 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
         </div>
 
         {meals.length > 1 ? (
-          <div className="flex shrink-0 justify-between gap-3 px-4 pt-1 pb-5 md:px-8 md:pb-7">
+          <div className="flex shrink-0 justify-between gap-3 px-4 pt-1 pb-5 md:px-8 md:pb-7" dir="ltr">
             <button
               onClick={goPrev}
               disabled={index === 0}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-30"
+              dir={isRTL ? 'rtl' : 'ltr'}
             >
               <ChevronLeft className="h-4 w-4" />
               {t('previous')}
@@ -313,6 +314,7 @@ export default function MealDetailSheet({ meals, initialIndex, onClose, fallback
               onClick={goNext}
               disabled={index === meals.length - 1}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-30"
+              dir={isRTL ? 'rtl' : 'ltr'}
             >
               {t('next')}
               <ChevronRight className="h-4 w-4" />

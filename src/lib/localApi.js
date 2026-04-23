@@ -388,6 +388,9 @@ const serializeCategoryPayload = (payload) => ({
   name_en: payload.name ?? payload.name_en ?? '',
   name_he: payload.name_he ?? '',
   name_ar: payload.name_ar ?? '',
+  desc_en: payload.description ?? payload.desc_en ?? '',
+  desc_he: payload.description_he ?? payload.desc_he ?? '',
+  desc_ar: payload.description_ar ?? payload.desc_ar ?? '',
   restaurant_id: payload.restaurant_id ?? null,
   parent_id: payload.parent_id ?? null,
   sort_order: payload.sort_order ?? 0,
@@ -428,6 +431,9 @@ const normalizeRestaurant = (row) => ({
 const normalizeCategory = (row) => ({
   ...row,
   name: row.name ?? row.name_en ?? '',
+  description: row.description ?? row.desc_en ?? '',
+  description_he: row.description_he ?? row.desc_he ?? '',
+  description_ar: row.description_ar ?? row.desc_ar ?? '',
   parent_id: row.parent_id ?? null,
 });
 
