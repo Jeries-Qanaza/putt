@@ -6,6 +6,7 @@ const MAX_OUTPUT_BYTES = 900 * 1024;
 const MAX_IMAGE_WIDTH = 1600;
 const MAX_IMAGE_HEIGHT = 1600;
 const STORAGE_BUCKET = 'putt-assets';
+const STORAGE_PUBLIC_PATH_SEGMENT = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -217,6 +218,32 @@ export async function uploadPreparedImageToStorage(imageValue, options = {}) {
 
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
   return data?.publicUrl || imageValue;
+}
+
+export function getStoragePathFromPublicUrl(fileUrl) {
+  if (!fileUrl || typeof fileUrl !== 'string') return null;
+  const markerIndex = fileUrl.indexOf(STORAGE_PUBLIC_PATH_SEGMENT);
+  if (markerIndex === -1) return null;
+
+  const pathStart = markerIndex + STORAGE_PUBLIC_PATH_SEGMENT.length;
+  const pathWithQuery = fileUrl.slice(pathStart);
+  const cleanPath = pathWithQuery.split('?')[0].split('#')[0];
+
+  return cleanPath || null;
+}
+
+export async function deleteStorageImageByUrl(fileUrl) {
+  const storagePath = getStoragePathFromPublicUrl(fileUrl);
+  if (!storagePath || !isSupabaseConfigured || !supabase) {
+    return false;
+  }
+
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
+  if (error) {
+    throw new Error(`Failed to delete image from Supabase Storage. Path: "${storagePath}". Original error: ${error.message || 'Unknown storage error.'}`);
+  }
+
+  return true;
 }
 
 export const imageUploadRules = {

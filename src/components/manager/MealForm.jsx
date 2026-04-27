@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { ALL_DIETARY_TAGS, dietaryIcons } from '@/lib/dietaryIcons';
-import { uploadPreparedImageToStorage } from '@/lib/imageUpload';
+import { deleteStorageImageByUrl, uploadPreparedImageToStorage } from '@/lib/imageUpload';
 
 export default function MealForm({ meal, restaurantId, restaurantName = '', categories = [], initialCategory = '', onClose }) {
   const { t, getLocalizedField } = useI18n();
@@ -108,8 +108,15 @@ export default function MealForm({ meal, restaurantId, restaurantName = '', cate
           fileBaseName: payload.name || 'meal',
         });
 
+        const previousImageUrl = meal?.image_url || '';
+        const nextImageUrl = payload.image_url || '';
+
         if (isEditing) {
-          return localApi.entities.Meal.update(meal.id, payload);
+          const result = await localApi.entities.Meal.update(meal.id, payload);
+          if (previousImageUrl && previousImageUrl !== nextImageUrl) {
+            await deleteStorageImageByUrl(previousImageUrl).catch(() => {});
+          }
+          return result;
         }
 
         return localApi.entities.Meal.create(payload);

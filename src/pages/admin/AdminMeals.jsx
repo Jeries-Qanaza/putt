@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import DietaryBadges from '@/components/shared/DietaryBadges';
 import MealForm from '@/components/manager/MealForm';
+import { deleteStorageImageByUrl } from '@/lib/imageUpload';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -34,7 +35,14 @@ export default function AdminMeals() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => localApi.entities.Meal.delete(id),
+    mutationFn: async (id) => {
+      const meal = meals.find((item) => item.id === id);
+      const deleted = await localApi.entities.Meal.delete(id);
+      if (meal?.image_url) {
+        await deleteStorageImageByUrl(meal.image_url).catch(() => {});
+      }
+      return deleted;
+    },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-meals'] }); setDeletingId(null); },
   });
 

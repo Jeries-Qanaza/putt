@@ -23,7 +23,7 @@ import Seo from '@/components/shared/Seo';
 import MealForm from '@/components/manager/MealForm';
 import EventForm from '@/components/manager/EventForm';
 import EditorLogin from './EditorLogin';
-import { uploadPreparedImageToStorage } from '@/lib/imageUpload';
+import { deleteStorageImageByUrl, uploadPreparedImageToStorage } from '@/lib/imageUpload';
 
 export default function RestaurantEditor() {
   const { slug } = useParams();
@@ -184,7 +184,14 @@ export default function RestaurantEditor() {
   }, [categories, currentCategoryId]);
 
   const deleteMeal = useMutation({
-    mutationFn: (id) => localApi.entities.Meal.delete(id),
+    mutationFn: async (id) => {
+      const meal = meals.find((item) => item.id === id);
+      const deleted = await localApi.entities.Meal.delete(id);
+      if (meal?.image_url) {
+        await deleteStorageImageByUrl(meal.image_url).catch(() => {});
+      }
+      return deleted;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['editor-meals'] });
       setDeletingMealId(null);
