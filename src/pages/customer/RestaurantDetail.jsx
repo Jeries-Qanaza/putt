@@ -219,24 +219,6 @@ export default function RestaurantDetail() {
     () => (selectedCategoryKey ? categoryMetaById[selectedCategoryKey] || null : null),
     [selectedCategoryKey, categoryMetaById]
   );
-  const selectedCategoryDescription = getCategoryDescription(selectedCategory, lang, getLocalizedField);
-
-  const selectedChildCategories = useMemo(() => {
-    if (!selectedCategoryKey) return [];
-    return (categoryChildrenByParentId[selectedCategoryKey] || [])
-      .slice()
-      .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER));
-  }, [categoryChildrenByParentId, selectedCategoryKey]);
-
-  const selectedCategoryMeals = useMemo(() => {
-    if (!selectedCategory) return [];
-    const normalizedName = normalizeCategoryKey(selectedCategory.name || selectedCategory.name_en);
-    return meals.filter((meal) => {
-      if (meal.category_id && meal.category_id === selectedCategory.id) return true;
-      if (!meal.category_id && normalizedName && normalizeCategoryKey(meal.menu_category) === normalizedName) return true;
-      return false;
-    });
-  }, [meals, selectedCategory]);
 
   const fallbackMealSections = useMemo(() => {
     if (categories.length > 0) return [];
@@ -257,10 +239,39 @@ export default function RestaurantDetail() {
     return Object.values(groupedMeals).sort((left, right) => left.label.localeCompare(right.label));
   }, [categories.length, meals, t]);
 
+  const selectedFallbackSection = useMemo(() => {
+    if (typeof selectedCategoryKey !== 'string' || !selectedCategoryKey.startsWith('fallback:')) return null;
+    const fallbackKey = selectedCategoryKey.slice('fallback:'.length);
+    return fallbackMealSections.find((section) => section.key === fallbackKey) || null;
+  }, [fallbackMealSections, selectedCategoryKey]);
+  const selectedSection = selectedCategory || selectedFallbackSection;
+  const selectedCategoryDescription = selectedCategory
+    ? getCategoryDescription(selectedCategory, lang, getLocalizedField)
+    : '';
+
+  const selectedChildCategories = useMemo(() => {
+    if (!selectedCategoryKey || !selectedCategory) return [];
+    return (categoryChildrenByParentId[selectedCategoryKey] || [])
+      .slice()
+      .sort((left, right) => (left.sort_order ?? Number.MAX_SAFE_INTEGER) - (right.sort_order ?? Number.MAX_SAFE_INTEGER));
+  }, [categoryChildrenByParentId, selectedCategory, selectedCategoryKey]);
+
+  const selectedCategoryMeals = useMemo(() => {
+    if (selectedFallbackSection) return selectedFallbackSection.meals || [];
+    if (!selectedCategory) return [];
+    const normalizedName = normalizeCategoryKey(selectedCategory.name || selectedCategory.name_en);
+    return meals.filter((meal) => {
+      if (meal.category_id && meal.category_id === selectedCategory.id) return true;
+      if (!meal.category_id && normalizedName && normalizeCategoryKey(meal.menu_category) === normalizedName) return true;
+      return false;
+    });
+  }, [meals, selectedCategory, selectedFallbackSection]);
+
   useEffect(() => {
-    if (!selectedCategoryKey || selectedCategory) return;
+    if (!selectedCategoryKey) return;
+    if (selectedCategory || selectedFallbackSection) return;
     setSelectedCategoryKey(null);
-  }, [selectedCategoryKey, selectedCategory]);
+  }, [selectedCategory, selectedCategoryKey, selectedFallbackSection]);
 
   useEffect(() => {
     if (!showWelcome || !restaurantId) return;
@@ -493,7 +504,7 @@ export default function RestaurantDetail() {
         ) : null}
       </AnimatePresence>
 
-      {!selectedCategory ? (
+      {!selectedSection ? (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <div className="hidden items-center gap-6 rounded-2xl border border-border/50 bg-card p-6 shadow-sm md:flex">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-muted">
@@ -626,7 +637,7 @@ export default function RestaurantDetail() {
                 onSelect={(label) => {
                   const source = rootCategories.length > 0 ? rootCategories : fallbackMealSections;
                   const match = source.find((section) => (getLocalizedField(section, 'name') || section.label) === label);
-                  if (match) setSelectedCategoryKey(match.id || match.key);
+                  if (match) setSelectedCategoryKey(match.id || `fallback:${match.key}`);
                 }}
               />
             )}
@@ -639,7 +650,7 @@ export default function RestaurantDetail() {
           >
             <div className="sticky top-0 z-20 shrink-0 space-y-2 border-b border-border/50 bg-card/95 px-4 py-3 backdrop-blur md:px-5">
               <button
-                onClick={() => setSelectedCategoryKey(selectedCategory.parent_id || null)}
+                onClick={() => setSelectedCategoryKey(selectedCategory?.parent_id || null)}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-primary/5"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -647,7 +658,7 @@ export default function RestaurantDetail() {
               </button>
 
               <div>
-                <h2 className="text-2xl font-bold text-foreground">{getLocalizedField(selectedCategory, 'name')}</h2>
+                <h2 className="text-2xl font-bold text-foreground">{getLocalizedField(selectedSection, 'name') || selectedSection?.label}</h2>
                 {selectedCategoryDescription ? (
                   <p className="mt-1 text-base font-semibold leading-relaxed text-muted-foreground">{selectedCategoryDescription}</p>
                 ) : null}
