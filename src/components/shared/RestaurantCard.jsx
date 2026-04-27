@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { toSlug } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { MapPin } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { motion } from 'framer-motion';
@@ -36,10 +35,10 @@ export default function RestaurantCard({ restaurant, distance }) {
               </div>
             )}
             {distance != null && (
-              <Badge className="absolute top-3 left-3 bg-card/90 text-foreground backdrop-blur-sm border-0 shadow-sm">
+              <div className="absolute top-3 left-3 inline-flex items-center rounded-full bg-card/90 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm shadow-sm">
                 <MapPin className="h-3 w-3 mr-1" />
                 {distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}
-              </Badge>
+              </div>
             )}
           </div>
           <div className="p-4 space-y-2">
@@ -47,13 +46,6 @@ export default function RestaurantCard({ restaurant, distance }) {
             {desc && (
               <p className="text-sm text-muted-foreground line-clamp-2">{desc}</p>
             )}
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {restaurant.categories?.slice(0, 3).map((cat) => (
-                <Badge key={cat} variant="secondary" className="text-xs font-normal">
-                  {cat}
-                </Badge>
-              ))}
-            </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
               {restaurant.address && (
                 <span className="flex items-center gap-1">

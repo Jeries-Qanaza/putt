@@ -28,6 +28,13 @@ export default function Home() {
   const { t, getLocalizedField, lang } = useI18n();
   const [search, setSearch] = useState('');
   const [userLocation, setUserLocation] = useState(null);
+  const loadErrorTitle = lang === 'he' ? 'משהו השתבש' : lang === 'ar' ? 'حدث خطأ ما' : 'Something went wrong';
+  const loadErrorBody =
+    lang === 'he'
+      ? 'לא הצלחנו לטעון את המסעדות כרגע. נסו שוב בעוד רגע.'
+      : lang === 'ar'
+        ? 'تعذر تحميل المطاعم الآن. حاول مرة أخرى بعد قليل.'
+        : 'We could not load the restaurants right now. Please try again shortly.';
 
   const {
     data: restaurants = [],
@@ -149,8 +156,8 @@ export default function Home() {
         </div>
       ) : restaurantsError ? (
         <div className="mx-auto max-w-2xl rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-6 text-center">
-          <p className="text-base font-semibold text-foreground">Could not load restaurants from Supabase.</p>
-          <p className="mt-2 text-sm text-muted-foreground">{restaurantsError.message}</p>
+          <p className="text-base font-semibold text-foreground">{loadErrorTitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{loadErrorBody}</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">

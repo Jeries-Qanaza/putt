@@ -173,6 +173,13 @@ export default function RestaurantDetail() {
   const mapsHref = restaurant?.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address)}`
     : null;
+  const loadErrorTitle = lang === 'he' ? 'משהו השתבש' : lang === 'ar' ? 'حدث خطأ ما' : 'Something went wrong';
+  const loadErrorBody =
+    lang === 'he'
+      ? 'לא הצלחנו לטעון את המסעדה כרגע. נסו שוב בעוד רגע.'
+      : lang === 'ar'
+        ? 'تعذر تحميل المطعم الآن. حاول مرة أخرى بعد قليل.'
+        : 'We could not load this restaurant right now. Please try again shortly.';
 
   const categoryMetaByName = useMemo(() => {
     return categories.reduce((acc, category) => {
@@ -266,6 +273,10 @@ export default function RestaurantDetail() {
   const openState = useMemo(() => getRestaurantOpenState(restaurant?.schedule), [restaurant?.schedule]);
   const canonicalUrl = restaurant ? toAbsoluteUrl(`/${toSlug(restaurant.name || restaurant.name_en || restaurant.id)}`) : '';
   const seoDescription = desc || `${name} on Putt. Browse the menu, opening hours, contact details, and restaurant information.`;
+  const cuisineNames = useMemo(
+    () => rootCategories.map((section) => getLocalizedField(section, 'name')).filter(Boolean),
+    [getLocalizedField, rootCategories]
+  );
   const restaurantJsonLd = restaurant
     ? {
         '@context': 'https://schema.org',
@@ -290,7 +301,7 @@ export default function RestaurantDetail() {
                 longitude: restaurant.longitude,
               }
             : undefined,
-        servesCuisine: restaurant.categories?.length ? restaurant.categories : undefined,
+        servesCuisine: cuisineNames.length ? cuisineNames : undefined,
         openingHoursSpecification: scheduleToOpeningHoursSpecification(restaurant.schedule),
         hasMenu: {
           '@type': 'Menu',
@@ -430,8 +441,8 @@ export default function RestaurantDetail() {
     return (
       <div className="py-8">
         <div className="mx-auto max-w-2xl rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-6 text-center">
-          <p className="text-base font-semibold text-foreground">Could not load this restaurant from Supabase.</p>
-          <p className="mt-2 text-sm text-muted-foreground">{loadError.message}</p>
+          <p className="text-base font-semibold text-foreground">{loadErrorTitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{loadErrorBody}</p>
         </div>
       </div>
     );
