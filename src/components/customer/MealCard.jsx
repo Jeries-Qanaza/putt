@@ -9,6 +9,7 @@ export default function MealCard({ meal, index = 0, onClick, fallbackImage }) {
   const desc = getLocalizedField(meal, 'description');
   const primaryImage = meal.image_url || fallbackImage || '';
   const [currentImage, setCurrentImage] = useState(primaryImage);
+  const prioritizeImage = index < 4;
 
   useEffect(() => {
     setCurrentImage(primaryImage);
@@ -31,7 +32,9 @@ export default function MealCard({ meal, index = 0, onClick, fallbackImage }) {
             src={currentImage}
             alt=""
             className="h-full w-full object-cover"
-            loading="lazy"
+            loading={prioritizeImage ? 'eager' : 'lazy'}
+            fetchPriority={prioritizeImage ? 'high' : 'auto'}
+            decoding="async"
             onError={() => {
               if (currentImage !== fallbackImage && fallbackImage) {
                 setCurrentImage(fallbackImage);

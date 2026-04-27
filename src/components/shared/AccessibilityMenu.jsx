@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Accessibility, ZoomIn, ZoomOut, Contrast, X, RotateCcw, Highlighter } from 'lucide-react';
+import { Accessibility, ZoomIn, ZoomOut, Contrast, X, RotateCcw, Highlighter, Volume2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-const DEFAULTS = { fontSize: 100, contrast: false, highlightLinks: false };
+const DEFAULTS = { fontSize: 100, contrast: false, highlightLinks: false, readAloud: false };
+const LANGUAGE_CODES = { en: 'en-US', he: 'he-IL', ar: 'ar-SA' };
 
 const LABELS = {
   en: {
@@ -12,6 +13,7 @@ const LABELS = {
     textSize: 'Text Size',
     highContrast: 'High Contrast',
     underlineLinks: 'Highlight Links',
+    readAloud: 'Read Aloud',
     reset: 'Reset',
   },
   he: {
@@ -19,6 +21,7 @@ const LABELS = {
     textSize: 'גודל טקסט',
     highContrast: 'ניגודיות גבוהה',
     underlineLinks: 'הדגשת קישורים',
+    readAloud: 'הקראה בקול',
     reset: 'איפוס',
   },
   ar: {
@@ -26,9 +29,34 @@ const LABELS = {
     textSize: 'حجم النص',
     highContrast: 'تباين عالٍ',
     underlineLinks: 'إبراز الروابط',
+    readAloud: 'القراءة بصوت عالٍ',
     reset: 'إعادة تعيين',
   },
 };
+
+function getReadableText(target) {
+  if (!(target instanceof Element)) return '';
+
+  const readableElement = target.closest(
+    'h1, h2, h3, h4, h5, h6, p, span, li, a, button, label, figcaption, blockquote, td, th'
+  );
+
+  if (!readableElement) return '';
+
+  const text = (
+    readableElement.getAttribute('aria-label') ||
+    readableElement.getAttribute('title') ||
+    readableElement.textContent ||
+    ''
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!text || text.length < 2) return '';
+  if (text.length > 280) return `${text.slice(0, 277)}...`;
+
+  return text;
+}
 
 export default function AccessibilityMenu() {
   const { lang, dir } = useI18n();
@@ -65,7 +93,41 @@ export default function AccessibilityMenu() {
     document.documentElement.style.fontSize = `${settings.fontSize}%`;
     document.documentElement.setAttribute('data-contrast', settings.contrast ? 'high' : 'normal');
     document.documentElement.setAttribute('data-highlight-links', settings.highlightLinks ? 'true' : 'false');
+    document.documentElement.setAttribute('data-read-aloud', settings.readAloud ? 'true' : 'false');
   }, [settings]);
+
+  useEffect(() => {
+    if (!settings.readAloud || typeof window === 'undefined' || !window.speechSynthesis) {
+      return undefined;
+    }
+
+    const handleClick = (event) => {
+      const text = getReadableText(event.target);
+      if (!text) return;
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = LANGUAGE_CODES[lang] || LANGUAGE_CODES.en;
+
+      const voices = window.speechSynthesis.getVoices();
+      const matchingVoice = voices.find((voice) =>
+        voice.lang?.toLowerCase().startsWith(utterance.lang.slice(0, 2).toLowerCase())
+      );
+
+      if (matchingVoice) {
+        utterance.voice = matchingVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    document.addEventListener('click', handleClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleClick, true);
+      window.speechSynthesis.cancel();
+    };
+  }, [lang, settings.readAloud]);
 
   const shouldHide = isMobile && overlayContext === 'meal-sheet';
 
@@ -159,6 +221,14 @@ export default function AccessibilityMenu() {
                 >
                   <Highlighter className="h-4 w-4" />
                   {labels.underlineLinks}
+                </button>
+
+                <button
+                  onClick={() => updateSetting('readAloud', !settings.readAloud)}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${settings.readAloud ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted'}`}
+                >
+                  <Volume2 className="h-4 w-4" />
+                  {labels.readAloud}
                 </button>
 
                 <button

@@ -146,8 +146,7 @@ export default function MealForm({ meal, restaurantId, restaurantName = '', cate
           <ImageUpload
             value={form.image_url}
             onChange={(value) => setForm({ ...form, image_url: value })}
-            restaurantId={restaurantId}
-            entityType="meals"
+            cropAspect={16 / 9}
           />
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

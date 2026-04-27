@@ -68,8 +68,7 @@ export default function EventForm({ event, restaurantId, restaurantName = '', on
           <ImageUpload
             value={form.image_url}
             onChange={(v) => setForm({ ...form, image_url: v })}
-            restaurantId={restaurantId}
-            entityType="events"
+            cropAspect={16 / 9}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

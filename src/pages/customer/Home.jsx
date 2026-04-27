@@ -166,8 +166,8 @@ export default function Home() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
-          {filtered.map((restaurant) => (
-            <RestaurantCard key={restaurant.id} restaurant={restaurant} distance={restaurant.distance} />
+          {filtered.map((restaurant, index) => (
+            <RestaurantCard key={restaurant.id} restaurant={restaurant} distance={restaurant.distance} index={index} />
           ))}
         </div>
       )}

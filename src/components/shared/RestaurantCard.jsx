@@ -6,12 +6,13 @@ import { MapPin } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 
-export default function RestaurantCard({ restaurant, distance }) {
+export default function RestaurantCard({ restaurant, distance, index = 0 }) {
   const { t, getLocalizedField } = useI18n();
   const name = getLocalizedField(restaurant, 'name');
   const desc = getLocalizedField(restaurant, 'description');
   const slug = toSlug(restaurant.name || restaurant.name_en || restaurant.id);
   const imageUrl = restaurant.cover_image || restaurant.logo_url;
+  const prioritizeImage = index < 4;
 
   return (
     <motion.div
@@ -27,7 +28,9 @@ export default function RestaurantCard({ restaurant, distance }) {
                 src={imageUrl}
                 alt={name}
                 className="h-full w-full bg-white object-contain p-3 transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
+                loading={prioritizeImage ? 'eager' : 'lazy'}
+                fetchPriority={prioritizeImage ? 'high' : 'auto'}
+                decoding="async"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">

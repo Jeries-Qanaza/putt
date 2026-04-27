@@ -321,8 +321,8 @@ export default function RestaurantEditor() {
       <main className="mx-auto h-[calc(100vh-3.5rem)] max-w-4xl overflow-y-auto px-4 py-6">
         <Tabs defaultValue="categories">
           <TabsList className="mb-6 w-full justify-start bg-muted/50">
-            <TabsTrigger value="categories" className="flex-1 md:flex-none">{t('categories')}</TabsTrigger>
-            <TabsTrigger value="meals" className="flex-1 md:flex-none">{t('menu')}</TabsTrigger>
+            <TabsTrigger value="categories" className="flex-1 md:flex-none">{t('menu')}</TabsTrigger>
+            <TabsTrigger value="meals" className="flex-1 md:flex-none">{t('allMeals')}</TabsTrigger>
             <TabsTrigger value="events" className="flex-1 md:flex-none">{t('events')} {events.length > 0 && `(${events.length})`}</TabsTrigger>
             <TabsTrigger value="info" className="flex-1 md:flex-none"><Settings className="me-1 h-4 w-4" /> {t('info')}</TabsTrigger>
           </TabsList>
@@ -330,7 +330,7 @@ export default function RestaurantEditor() {
           <TabsContent value="categories">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold">{currentCategory ? getLocalizedField(currentCategory, 'name') : t('categories')}</h2>
+                <h2 className="text-lg font-bold">{currentCategory ? getLocalizedField(currentCategory, 'name') : t('menu')}</h2>
                 <p className="text-sm text-muted-foreground">
                   {currentCategory ? 'Open a subcategory or manage meals inside this folder.' : 'Open a category like a folder and build your menu tree.'}
                 </p>
@@ -357,27 +357,33 @@ export default function RestaurantEditor() {
                 ) : null}
 
                 {visibleCategories.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                     {visibleCategories.map((category) => {
-                      const categoryName = category.name || category.name_en || '';
-                      const categoryMeals = mealsByCategory[category.id] || mealsByCategory[categoryName] || [];
-                      const children = childCategoriesByParent[category.id] || [];
-
                       return (
-                        <div key={category.id} className="flex items-center justify-between rounded-2xl border border-border/60 bg-background px-4 py-4 shadow-sm">
-                          <button type="button" onClick={() => setCurrentCategoryId(category.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                              <FolderOpen className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold">{getLocalizedField(category, 'name')}</p>
-                              <p className="text-xs text-muted-foreground">{categoryMeals.length} {t('items')} · {children.length} {t('categories')}</p>
-                              {children.length > 0 ? <p className="mt-1 truncate text-xs text-muted-foreground/80">{children.map((child) => getLocalizedField(child, 'name')).join(' · ')}</p> : null}
-                            </div>
-                          </button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openCategoryForm(category)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                        <div key={category.id} className="group relative">
+                          <div className="relative mx-auto w-full max-w-[150px] transition-transform duration-200 hover:-translate-y-1">
+                            <div className="absolute left-3 top-0 h-5 w-16 rounded-t-[14px] rounded-b-[8px] bg-[#76a7db]" />
+                            <div className="absolute left-4 top-2 h-3 w-12 rounded-full bg-white/25 blur-[2px]" aria-hidden="true" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute end-1 top-1 z-10 h-7 w-7 shrink-0 rounded-full bg-white/72 text-slate-800 shadow-sm backdrop-blur hover:bg-white"
+                              onClick={() => openCategoryForm(category)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => setCurrentCategoryId(category.id)}
+                              className="relative mt-3 flex h-24 w-full items-end justify-center overflow-hidden rounded-[16px] rounded-tl-[10px] border border-[#6e9fd2] bg-gradient-to-b from-[#8eb8e7] via-[#7faddf] to-[#73a4da] px-3 pb-3 shadow-[0_12px_24px_-18px_rgba(32,73,118,0.9)]"
+                            >
+                              <div className="absolute inset-x-2 top-2 h-4 rounded-full bg-white/20 blur-[2px]" aria-hidden="true" />
+                              <FolderOpen className="relative h-8 w-8 text-[#234d7f]" />
+                            </button>
+                          </div>
+                          <p className="mt-3 text-center text-sm font-medium text-foreground">
+                            {getLocalizedField(category, 'name')}
+                          </p>
                         </div>
                       );
                     })}
@@ -387,21 +393,45 @@ export default function RestaurantEditor() {
                 {currentCategory ? (
                   <div className="space-y-3 border-t border-border/60 pt-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold">{t('menu')}</p>
+                      <p className="text-sm font-semibold">{t('allMeals')}</p>
                       <Badge variant="secondary">{currentCategoryMeals.length}</Badge>
                     </div>
                     {currentCategoryMeals.length > 0 ? (
-                      <div className="space-y-2">
-                        {currentCategoryMeals.map((meal) => (
-                          <div key={meal.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{getLocalizedField(meal, 'name')}</p>
-                              <p className="text-xs text-muted-foreground">{t('currency')}{meal.price}</p>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {currentCategoryMeals.map((meal, index) => (
+                          <Card key={meal.id} className="overflow-hidden border border-border/60 shadow-sm">
+                            <div className="aspect-[16/10] overflow-hidden bg-muted">
+                              {meal.image_url || restaurantLogo ? (
+                                <img
+                                  src={meal.image_url || restaurantLogo}
+                                  alt={getLocalizedField(meal, 'name')}
+                                  className="h-full w-full object-cover"
+                                  loading={index < 4 ? 'eager' : 'lazy'}
+                                  fetchPriority={index < 4 ? 'high' : 'auto'}
+                                  decoding="async"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-muted text-3xl">
+                                  *
+                                </div>
+                              )}
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openMealForm(meal)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                            <CardContent className="space-y-2 p-4">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate font-semibold">{getLocalizedField(meal, 'name')}</p>
+                                  <p className="text-sm font-bold text-primary">{t('currency')}{meal.price}</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openMealForm(meal)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                              {getLocalizedField(meal, 'description') ? (
+                                <p className="line-clamp-2 text-xs text-muted-foreground">{getLocalizedField(meal, 'description')}</p>
+                              ) : null}
+                              <DietaryBadges tags={meal.dietary_tags} />
+                            </CardContent>
+                          </Card>
                         ))}
                       </div>
                     ) : (
@@ -425,7 +455,7 @@ export default function RestaurantEditor() {
 
           <TabsContent value="meals">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">{t('menu')}</h2>
+              <h2 className="text-lg font-bold">{t('allMeals')}</h2>
               <Button onClick={() => openMealForm()} className="gap-2"><Plus className="h-4 w-4" /> {t('addMeal')}</Button>
             </div>
                         <div className="space-y-6">
@@ -523,7 +553,7 @@ export default function RestaurantEditor() {
           <TabsContent value="info">
             {infoForm ? <div className="max-w-2xl space-y-5">
               <h2 className="text-lg font-bold">{t('restaurantInfo')}</h2>
-              <div><Label>{t('coverImage')}</Label><ImageUpload value={infoForm.cover_image} onChange={(value) => setInfoForm({ ...infoForm, cover_image: value })} restaurantId={restaurant.id} entityType="restaurant-covers" /></div>
+              <div><Label>{t('coverImage')}</Label><ImageUpload value={infoForm.cover_image} onChange={(value) => setInfoForm({ ...infoForm, cover_image: value })} cropAspect={16 / 9} /></div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div><Label>{t('description')} (EN)</Label><Textarea value={infoForm.description} onChange={(event) => setInfoForm({ ...infoForm, description: event.target.value })} rows={2} /></div>
                 <div><Label>{t('description')} (HE)</Label><Textarea value={infoForm.description_he} onChange={(event) => setInfoForm({ ...infoForm, description_he: event.target.value })} dir="rtl" rows={2} /></div>

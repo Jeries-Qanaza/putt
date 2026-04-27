@@ -26,7 +26,43 @@ function dataUrlSize(dataUrl) {
   return Math.ceil((base64.length * 3) / 4);
 }
 
-export async function prepareImageForUpload(file) {
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getCropRect(image, crop = {}) {
+  if (!crop || !crop.aspectRatio) {
+    return {
+      sx: 0,
+      sy: 0,
+      sw: image.width,
+      sh: image.height,
+    };
+  }
+
+  const aspectRatio = crop.aspectRatio;
+  const imageRatio = image.width / image.height;
+  const baseWidth = imageRatio > aspectRatio ? image.height * aspectRatio : image.width;
+  const baseHeight = imageRatio > aspectRatio ? image.height : image.width / aspectRatio;
+  const zoom = clamp(Number(crop.zoom) || 1, 1, 3);
+  const cropWidth = clamp(baseWidth / zoom, 1, image.width);
+  const cropHeight = clamp(baseHeight / zoom, 1, image.height);
+  const offsetX = clamp(Number(crop.offsetX) || 0, -1, 1);
+  const offsetY = clamp(Number(crop.offsetY) || 0, -1, 1);
+  const maxShiftX = Math.max(0, (image.width - cropWidth) / 2);
+  const maxShiftY = Math.max(0, (image.height - cropHeight) / 2);
+  const centerX = image.width / 2 + maxShiftX * offsetX;
+  const centerY = image.height / 2 + maxShiftY * offsetY;
+
+  return {
+    sx: clamp(centerX - cropWidth / 2, 0, image.width - cropWidth),
+    sy: clamp(centerY - cropHeight / 2, 0, image.height - cropHeight),
+    sw: cropWidth,
+    sh: cropHeight,
+  };
+}
+
+export async function prepareImageForUpload(file, options = {}) {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     throw new Error('Please upload a JPG, PNG, or WEBP image.');
   }
@@ -36,9 +72,10 @@ export async function prepareImageForUpload(file) {
   }
 
   const image = await loadImageFromFile(file);
-  const scale = Math.min(1, MAX_IMAGE_WIDTH / image.width, MAX_IMAGE_HEIGHT / image.height);
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
+  const cropRect = getCropRect(image, options.crop);
+  const scale = Math.min(1, MAX_IMAGE_WIDTH / cropRect.sw, MAX_IMAGE_HEIGHT / cropRect.sh);
+  const width = Math.max(1, Math.round(cropRect.sw * scale));
+  const height = Math.max(1, Math.round(cropRect.sh * scale));
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -46,7 +83,17 @@ export async function prepareImageForUpload(file) {
   const context = canvas.getContext('2d', { alpha: false });
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, width, height);
-  context.drawImage(image, 0, 0, width, height);
+  context.drawImage(
+    image,
+    cropRect.sx,
+    cropRect.sy,
+    cropRect.sw,
+    cropRect.sh,
+    0,
+    0,
+    width,
+    height
+  );
 
   let outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
   let quality = 0.82;

@@ -10,9 +10,9 @@ import {
 import { Globe } from 'lucide-react';
 
 const languages = [
-  { code: 'he', label: '🇮🇱 עברית' },
-  { code: 'ar', label: '🇸🇦 العربية' },
-  { code: 'en', label: '🇺🇸 English' },
+  { code: 'he', label: 'עברית' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'en', label: 'English' },
 ];
 
 export default function LanguageSwitcher() {
@@ -26,13 +26,13 @@ export default function LanguageSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {languages.map((l) => (
+        {languages.map((language) => (
           <DropdownMenuItem
-            key={l.code}
-            onClick={() => setLang(l.code)}
-            className={`py-3 text-base ${lang === l.code ? 'bg-primary/10 font-semibold' : ''}`}
+            key={language.code}
+            onClick={() => setLang(language.code)}
+            className={`py-3 text-base ${lang === language.code ? 'bg-primary/10 font-semibold' : ''}`}
           >
-            {l.label}
+            {language.label}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
